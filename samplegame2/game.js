@@ -106,6 +106,8 @@ var G = ( function () {
 	var _path; // path to follow, null if none
 	var _step; // current step on path
 
+    var _moves;
+
 	// This timer function moves the actor
 
 	var _tick = function () {
@@ -134,6 +136,7 @@ var G = ( function () {
 		PS.spriteMove( _id_sprite, nx, ny );
 		_actor_x = nx; // update actor's xpos
 		_actor_y = ny; // and ypos
+        _moves++;
 
 		// If actor has reached a gold piece, take it
 
@@ -171,6 +174,11 @@ var G = ( function () {
 			PS.statusText( "You escaped with " + _gold_found + " gold!" );
 			PS.audioPlay( _SOUND_WIN );
 			_won = true;
+
+            PS.dbEvent("test", "steps", _moves);
+            PS.dbEvent("test", "shutdown", true);
+            PS.dbSend("test", "vcmiller");
+            PS.dbErase("test");
 			return;
 		}
 
@@ -272,6 +280,7 @@ var G = ( function () {
 			_path = null; // start with no path
 			_step = 0;
 			_id_timer = PS.timerStart( 6, _tick );
+			_moves = 0;
 		},
 
 		// move( x, y )
@@ -299,6 +308,7 @@ var G = ( function () {
 				_path = line;
 				_step = 0; // start at beginning
 				PS.audioPlay( _SOUND_FLOOR );
+				PS.dbEvent("test", "click", true)
 			}
 			else {
 				PS.audioPlay( _SOUND_WALL );
@@ -306,9 +316,12 @@ var G = ( function () {
 		},
 
         shutdown: function (options) {
-		    PS.dbEvent("test", "shutdown", true);
-            PS.dbSend("test", "vcmiller");
-            PS.dbErase("test");
+		    if (PS.dbValid("test")) {
+                PS.dbEvent("test", "steps", _moves);
+                PS.dbEvent("test", "shutdown", true);
+                PS.dbSend("test", "vcmiller");
+                PS.dbErase("test");
+            }
         }
 	};
 } () ); // end of IIFE
