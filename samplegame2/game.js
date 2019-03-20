@@ -107,6 +107,71 @@ var G = ( function () {
 	var _step; // current step on path
 
     var _moves;
+    var _stop_time;
+
+    var _map_rotation;
+
+    var _rotation_matrices = [
+        [1, 0, // Zero degrees (identity matrix)
+         0, 1],
+
+        [0, -1, // 90 degrees
+         1,  0],
+
+        [-1,  0, // 180 degrees
+          0, -1],
+
+        [ 0, 1, // 270 degrees
+         -1, 0]
+    ];
+
+    var _do_rotate = function (x, y, rot) {
+        x -= Math.floor(_MAP.width / 2);
+        y -= Math.floor(_MAP.height / 2);
+
+        var mat = _rotation_matrices[rot];
+
+        var nx = x * mat[0] + y * mat[1] + Math.floor(_MAP.width / 2);
+        var ny = x * mat[2] + y * mat[3] + Math.floor(_MAP.height / 2);
+        return { x: nx, y: ny };
+    };
+
+    // Rotate a point using the current matrix.
+    var _rotate = function(x, y) {
+        return _do_rotate(x, y, _map_rotation);
+    };
+
+    var _unrotate = function(x, y) {
+        if (_map_rotation % 2 === 0) {
+            return _do_rotate(x, y, _map_rotation);
+        } else {
+            return _do_rotate(x, y, (_map_rotation + 2) % 4);
+        }
+    };
+
+    var redraw = function () {
+        for (var x = 0; x < _MAP.width; x++) {
+            for (var y = 0; y < _MAP.height; y++) {
+                var rot = _rotate(x, y);
+                var val = _MAP.data[ ( y * _MAP.height ) + x ]; // get map data
+
+                if (_exit_ready && x === _exit_x && y === _exit_y) {
+                    PS.color( rot.x, rot.y, _COLOR_EXIT ); // show the exit
+                    PS.glyphColor( rot.x, rot.y, PS.COLOR_WHITE ); // mark with white X
+                    PS.glyph( rot.x, rot.y, "X" );
+                } else {
+                    PS.glyph (rot.x, rot.y, PS.DEFAULT);
+                    if (val === _MAP_WALL) {
+                        PS.color(rot.x, rot.y, _COLOR_WALL);
+                    } else if (val === _MAP_FLOOR) {
+                        PS.color(rot.x, rot.y, _COLOR_FLOOR);
+                    } else if (val === _MAP_GOLD) {
+                        PS.color(rot.x, rot.y, _COLOR_GOLD);
+                    }
+                }
+            }
+        }
+    };
 
 	// This timer function moves the actor
 
@@ -128,12 +193,19 @@ var G = ( function () {
 
 		if ( ( _actor_x === nx ) && ( _actor_y === ny ) ) {
 			_path = null;
+			_stop_time = new Date().getTime();
 			return;
 		}
 
 		// Move sprite to next position
 
-		PS.spriteMove( _id_sprite, nx, ny );
+        if (_step % 5 === 0) {
+            _map_rotation = (_map_rotation + 1) % 4;
+            redraw();
+        }
+
+        var rot = _rotate(nx, ny);
+		PS.spriteMove( _id_sprite, rot.x, rot.y );
 		_actor_x = nx; // update actor's xpos
 		_actor_y = ny; // and ypos
         _moves++;
@@ -145,16 +217,17 @@ var G = ( function () {
 		if ( val === _MAP_GOLD ) {
 			_MAP.data[ ptr ] = _MAP_FLOOR; // change gold to floor in map.data
 			PS.gridPlane( _PLANE_FLOOR ); // switch to floor plane
-			PS.color( _actor_x, _actor_y, _COLOR_FLOOR ); // change visible floor color
+			PS.color( rot.x, rot.y, _COLOR_FLOOR ); // change visible floor color
 
 			// If last gold has been collected, activate the exit
 
 			_gold_found += 1; // update gold count
 			if ( _gold_found >= _gold_count ) {
 				_exit_ready = true;
-				PS.color( _exit_x, _exit_y, _COLOR_EXIT ); // show the exit
-				PS.glyphColor( _exit_x, _exit_y, PS.COLOR_WHITE ); // mark with white X
-				PS.glyph( _exit_x, _exit_y, "X" );
+				rot = _rotate(_exit_x, _exit_y);
+				PS.color( rot.x, rot.y, _COLOR_EXIT ); // show the exit
+				PS.glyphColor( rot.x, rot.y, PS.COLOR_WHITE ); // mark with white X
+				PS.glyph( rot.x, rot.y, "X" );
 				PS.statusText( "Found " + _gold_found + " gold! Exit open!" );
 				PS.audioPlay( _SOUND_OPEN );
 			}
@@ -175,10 +248,7 @@ var G = ( function () {
 			PS.audioPlay( _SOUND_WIN );
 			_won = true;
 
-            PS.dbEvent("test", "steps", _moves);
-            PS.dbEvent("test", "shutdown", true);
-            PS.dbSend("test", "vcmiller");
-            PS.dbErase("test");
+            G.shutdown();
 			return;
 		}
 
@@ -188,6 +258,7 @@ var G = ( function () {
 
 		if ( _step >= _path.length ) {
 			_path = null;
+            _stop_time = new Date().getTime();
 		}
 	};
 
@@ -215,6 +286,7 @@ var G = ( function () {
 
 			_gold_count = 0;
 			_actor_x = _exit_x = -1; // mark as not found
+            _map_rotation = 0;
 			for ( y = 0; y < _MAP.height; y += 1 ) {
 				for ( x = 0; x < _MAP.width; x += 1 ) {
 					val = _MAP.data[ ( y * _MAP.height ) + x ]; // get map data
@@ -281,6 +353,7 @@ var G = ( function () {
 			_step = 0;
 			_id_timer = PS.timerStart( 6, _tick );
 			_moves = 0;
+			_stop_time = new Date().getTime();
 		},
 
 		// move( x, y )
@@ -295,10 +368,16 @@ var G = ( function () {
 				return;
 			}
 
+			var t = 0;
+			if (!_path) {
+			    t = new Date().getTime() - _stop_time;
+            }
+
 			// Use pathfinder to calculate a line from current actor position
 			// to touched position
 
-			line = PS.pathFind( _id_path, _actor_x, _actor_y, x, y );
+            var rot = _unrotate(x, y);
+			line = PS.pathFind( _id_path, _actor_x, _actor_y, rot.x, rot.y );
 
 			// If line is not empty, it's valid,
 			// so make it the new path
@@ -308,7 +387,7 @@ var G = ( function () {
 				_path = line;
 				_step = 0; // start at beginning
 				PS.audioPlay( _SOUND_FLOOR );
-				PS.dbEvent("test", "click", true)
+				PS.dbEvent("test", "click_time", t);
 			}
 			else {
 				PS.audioPlay( _SOUND_WALL );
