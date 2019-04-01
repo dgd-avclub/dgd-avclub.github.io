@@ -108,15 +108,10 @@ const G = (function () {
             statusText: "Destroy blocks with lasers to win.",
             data: [
                 [ CLR, CLR, CLR, GBL, CLR, CLR ],
-
                 [ CLR, CLR, CLR, CLR, CLR, CLR ],
-
                 [ CLR, CLR, CLR, CLR, CLR, CLR ],
-
                 [ CLR, CLR, CLR, CLR, CLR, CLR ],
-
                 [ CLR, CLR, CLR, CLR, CLR, CLR ],
-
                 [ GER, CLR, CLR, CLR, CLR, CLR ]
             ]
         },
@@ -125,15 +120,10 @@ const G = (function () {
             statusText: "Click two adjacent blocks to swap them.",
             data: [
                 [ CLR, CLR, CLR, CLR, CLR, CLR ],
-
                 [ CLR, CLR, CLR, CLR, CLR, CLR ],
-
                 [ CLR, CLR, CLR, CLR, CLR, CLR ],
-
                 [ CLR, CLR, CLR, CLR, CLR, CLR ],
-
                 [ CLR, CLR, CLR, CLR, CLR, CLR ],
-
                 [ CLR, CLR, BBL, BER, CLR, CLR ]
             ]
         },
@@ -141,17 +131,12 @@ const G = (function () {
             size: new Vector(6, 6),
             statusText: "Mirrors can redirect a laser.",
             data: [
-                [ RBL, CLR, CLR, CLR, CLR, CLR ],
-
                 [ CLR, CLR, CLR, CLR, CLR, CLR ],
-
                 [ CLR, CLR, CLR, CLR, CLR, CLR ],
-
                 [ CLR, CLR, CLR, CLR, CLR, CLR ],
-
-                [ CLR, CLR, CLR, CLR, REU, CLR ],
-
-                [ RMD, CLR, CLR, CLR, RML, CLR ]
+                [ CLR, CLR, CLR, CLR, CLR, CLR ],
+                [ RMU, CLR, CLR, CLR, REU, CLR ],
+                [ RBL, CLR, CLR, CLR, RML, CLR ]
             ]
         },
         {
@@ -159,15 +144,10 @@ const G = (function () {
             statusText: "Blocks must be hit by the correct color.",
             data: [
                 [ CLR, CLR, BBL, RBL, CLR, CLR ],
-
                 [ CLR, CLR, CLR, CLR, CLR, CLR ],
-
                 [ CLR, CLR, CLR, CLR, CLR, CLR ],
-
                 [ CLR, CLR, CLR, CLR, CLR, CLR ],
-
                 [ CLR, CLR, CLR, CLR, CLR, CLR ],
-
                 [ CLR, CLR, REU, BEU, CLR, CLR ]
             ]
         },
@@ -176,19 +156,40 @@ const G = (function () {
             statusText: "Mirrors can change the color of light.",
             data: [
                 [ CLR, CLR, BBL, RBL, CLR, CLR ],
-
                 [ CLR, CLR, CLR, CLR, CLR, CLR ],
-
                 [ CLR, CLR, CLR, CLR, CLR, CLR ],
-
                 [ CLR, CLR, CLR, CLR, CLR, CLR ],
-
                 [ CLR, CLR, CLR, CLR, CLR, CLR ],
-
                 [ GER, CLR, RMU, BMU, CLR, GEL ]
+            ]
+        },
+        {
+            size: new Vector(6, 6),
+            statusText: "",
+            data: [
+                [ CLR, CLR, GBL, CLR, CLR, CLR ],
+                [ CLR, CLR, CLR, CLR, CLR, CLR ],
+                [ CLR, CLR, RMU, RBL, CLR, CLR ],
+                [ CLR, CLR, CLR, CLR, CLR, CLR ],
+                [ CLR, CLR, BBL, BMU, CLR, CLR ],
+                [ GER, CLR, CLR, CLR, CLR, CLR ]
+            ]
+        },
+        {
+            size: new Vector(6, 6),
+            statusText: "",
+            data: [
+                [ CLR, CLR, CLR, CLR, CLR, CLR ],
+                [ CLR, CLR, CLR, CLR, CLR, CLR ],
+                [ CLR, CLR, CLR, CLR, CLR, CLR ],
+                [ CLR, BBL, CLR, GBL, CLR, CLR ],
+                [ CLR, GMU, GBL, BML, CLR, CLR ],
+                [ CLR, GML, BBL, BMU, CLR, BEL ]
             ]
         }
     ];
+
+    const startLevel = 0;
 
     let time = 0;
     let timeSinceLoad = 0;
@@ -203,6 +204,8 @@ const G = (function () {
         blockCount: 0
     };
 
+    let buttons = {};
+
     class GridObject {
         constructor(pos) {
             this.pos = pos;
@@ -213,6 +216,7 @@ const G = (function () {
         draw() { }
         tick() { }
         onHit(by) { }
+        onHitEnd(by) { }
         onMove() { }
         onDestroy() { }
         swappable() { return true; }
@@ -257,6 +261,7 @@ const G = (function () {
             this.dir = dir;
             this.color = color;
             this.child = null;
+            this.hitting = null;
         }
 
         emit() {
@@ -265,6 +270,7 @@ const G = (function () {
             const next = this.pos.plus(this.dir);
             if (inBounds(next)) {
                 const obj = getData(scene.grid, next);
+                if (obj === this) return;
 
                 if (obj === null) {
                     this.child = new Laser(next, this.dir, this.color);
@@ -272,18 +278,20 @@ const G = (function () {
                     setData(scene.grid, next, this.child);
                 } else {
                     obj.onHit(this);
+                    this.hitting = obj;
                 }
             }
         }
 
         onDestroy() {
-            if (this.child) this.child.destroy();
-            this.child = null;
+            this.onMove();
         }
 
         onMove() {
             if (this.child) this.child.destroy();
             this.child = null;
+            if (this.hitting) this.hitting.onHitEnd(this);
+            this.hitting = null;
         }
     }
 
@@ -331,9 +339,9 @@ const G = (function () {
 
             PS.borderAlpha(x, y, 255);
             if (this.dir.x !== 0) {
-                PS.border(x, y, { left : 10, right: 10, top: 30, bottom: 30 });
+                PS.border(x, y, { left : 10, right: 10, top: 25, bottom: 25 });
             } else {
-                PS.border(x, y, { left : 30, right: 30, top: 10, bottom: 10 });
+                PS.border(x, y, { left : 25, right: 25, top: 10, bottom: 10 });
             }
 
             PS.borderColor(x, y, PS.COLOR_BLACK);
@@ -384,6 +392,10 @@ const G = (function () {
                 PS.audioPlay(mirrorSound);
                 this.hitTime = time;
             }
+        }
+
+        onHitEnd(by) {
+            this.onMove();
         }
 
         onMove() {
@@ -538,7 +550,7 @@ const G = (function () {
     }
 
     function clear() {
-        PS.gridSize(scene.size.x, scene.size.y);
+        PS.gridSize(scene.size.x, scene.size.y + 1);
 
         PS.bgAlpha(PS.ALL, PS.ALL, 255);
         PS.bgColor(PS.ALL, PS.ALL, PS.COLOR_BLACK);
@@ -560,6 +572,44 @@ const G = (function () {
         if (selected) {
             PS.borderColor(selected.x, selected.y, selectionColor);
         }
+
+        drawHud();
+    }
+
+    function drawHud() {
+        const y = scene.size.y;
+        PS.bgColor(PS.ALL, y, PS.COLOR_WHITE);
+        PS.bgAlpha(PS.ALL, y, 255);
+        PS.color(PS.ALL, y, PS.COLOR_WHITE);
+        PS.alpha(PS.ALL, y, 255);
+
+        buttons = {};
+        if (scene.level > 0) drawButton(scene.size.x - 3, '⇤', function () {
+            loadLevel(scene.level - 1);
+        });
+
+        if (scene.level < levels.length - 1) drawButton(scene.size.x - 2, '⇥', function () {
+            loadLevel(scene.level + 1);
+        });
+
+        drawButton(scene.size.x - 1, '↺', function () {
+            loadLevel(scene.level);
+        });
+    }
+
+    function drawButton(x, glyph, callback) {
+        const y = scene.size.y;
+
+        PS.color(x, y, 0xCCCCCC);
+        PS.scale(x, y, 90);
+        PS.alpha(x, y, 255);
+        PS.border(x, y, 2);
+        PS.borderColor(x, y, PS.COLOR_BLACK);
+        PS.borderAlpha(x, y, 255);
+        PS.glyph(x, y, glyph);
+        PS.glyphColor(x, y, PS.COLOR_BLUE);
+
+        buttons[x] = callback;
     }
 
     function tick() {
@@ -617,32 +667,41 @@ const G = (function () {
         }
     }
 
+    function hudTouch(x) {
+        let btn = buttons[x];
+        if (btn) btn();
+    }
+
     return {
         init: function () {
-            loadLevel(0);
+            loadLevel(startLevel);
             loadSounds();
 
             PS.timerStart(1, tick);
         },
 
         touch: function (x, y) {
-            const vec = new Vector(x, y);
-            const obj = getData(scene.grid, vec);
-            if (obj && obj.swappable()) {
-                PS.audioPlay(clickSound);
-                if (selected == null) {
-                    selected = vec;
-                } else if (vec.equals(selected)) {
-                    selected = null;
-                } else {
-                    const off = selected.minus(vec);
-                    if (Math.abs(off.x) + Math.abs(off.y) === 1) {
-                        swap(selected, vec);
+            if (y >= scene.size.y) {
+                hudTouch(x);
+            } else {
+                const vec = new Vector(x, y);
+                const obj = getData(scene.grid, vec);
+                if (obj && obj.swappable()) {
+                    PS.audioPlay(clickSound);
+                    if (selected == null) {
+                        selected = vec;
+                    } else if (vec.equals(selected)) {
                         selected = null;
+                    } else {
+                        const off = selected.minus(vec);
+                        if (Math.abs(off.x) + Math.abs(off.y) === 1) {
+                            swap(selected, vec);
+                            selected = null;
+                        }
                     }
-                }
 
-                draw();
+                    draw();
+                }
             }
         },
 
