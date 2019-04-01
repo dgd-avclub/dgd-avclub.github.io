@@ -4,6 +4,13 @@
 /* jshint browser : true, devel : true, esversion : 5, freeze : true */
 /* globals PS : true */
 
+/*
+
+Sound credits:
+Impact - https://freesound.org/people/nabz871/sounds/315723/
+
+ */
+
 
 const G = (function () {
     "use strict";
@@ -38,7 +45,17 @@ const G = (function () {
     const mirrorArrows = [ '⮞', '⮝', '⮜', '⮟' ];
     const emitterArrows = [ '⇢', '⇡', '⇠', '⇣'  ];
 
+    const impactSound = "impact";
+    const clickSound = "fx_click";
+    const laserSound = "fx_shoot6";
+    const mirrorSound = "fx_powerup2";
+    const winSound = "fx_ding";
+
+    const audioPath = "sounds/";
+
     const laserTime = 30;
+    const fadeTime = 15;
+    const levelAdvanceTime = 60;
 
     let id = 0;
 
@@ -88,6 +105,75 @@ const G = (function () {
     const levels = [
         {
             size: new Vector(6, 6),
+            statusText: "Destroy blocks with lasers to win.",
+            data: [
+                [ CLR, CLR, CLR, GBL, CLR, CLR ],
+
+                [ CLR, CLR, CLR, CLR, CLR, CLR ],
+
+                [ CLR, CLR, CLR, CLR, CLR, CLR ],
+
+                [ CLR, CLR, CLR, CLR, CLR, CLR ],
+
+                [ CLR, CLR, CLR, CLR, CLR, CLR ],
+
+                [ GER, CLR, CLR, CLR, CLR, CLR ]
+            ]
+        },
+        {
+            size: new Vector(6, 6),
+            statusText: "Click two adjacent blocks to swap them.",
+            data: [
+                [ CLR, CLR, CLR, CLR, CLR, CLR ],
+
+                [ CLR, CLR, CLR, CLR, CLR, CLR ],
+
+                [ CLR, CLR, CLR, CLR, CLR, CLR ],
+
+                [ CLR, CLR, CLR, CLR, CLR, CLR ],
+
+                [ CLR, CLR, CLR, CLR, CLR, CLR ],
+
+                [ CLR, CLR, BBL, BER, CLR, CLR ]
+            ]
+        },
+        {
+            size: new Vector(6, 6),
+            statusText: "Mirrors can redirect a laser.",
+            data: [
+                [ RBL, CLR, CLR, CLR, CLR, CLR ],
+
+                [ CLR, CLR, CLR, CLR, CLR, CLR ],
+
+                [ CLR, CLR, CLR, CLR, CLR, CLR ],
+
+                [ CLR, CLR, CLR, CLR, CLR, CLR ],
+
+                [ CLR, CLR, CLR, CLR, REU, CLR ],
+
+                [ RMD, CLR, CLR, CLR, RML, CLR ]
+            ]
+        },
+        {
+            size: new Vector(6, 6),
+            statusText: "Blocks must be hit by the correct color.",
+            data: [
+                [ CLR, CLR, BBL, RBL, CLR, CLR ],
+
+                [ CLR, CLR, CLR, CLR, CLR, CLR ],
+
+                [ CLR, CLR, CLR, CLR, CLR, CLR ],
+
+                [ CLR, CLR, CLR, CLR, CLR, CLR ],
+
+                [ CLR, CLR, CLR, CLR, CLR, CLR ],
+
+                [ CLR, CLR, REU, BEU, CLR, CLR ]
+            ]
+        },
+        {
+            size: new Vector(6, 6),
+            statusText: "Mirrors can change the color of light.",
             data: [
                 [ CLR, CLR, BBL, RBL, CLR, CLR ],
 
@@ -107,12 +193,14 @@ const G = (function () {
     let time = 0;
     let timeSinceLoad = 0;
     let timeSinceMove = 0;
+    let winTime = -1;
     let selected = null;
     const scene = {
         size: null,
         level: -1,
         grid: [],
-        lasers: []
+        lasers: [],
+        blockCount: 0
     };
 
     class GridObject {
@@ -180,6 +268,7 @@ const G = (function () {
 
                 if (obj === null) {
                     this.child = new Laser(next, this.dir, this.color);
+                    PS.audioPlay(laserSound, { volume: 0.1 });
                     setData(scene.grid, next, this.child);
                 } else {
                     obj.onHit(this);
@@ -292,6 +381,7 @@ const G = (function () {
 
         onHit(by) {
             if (this.hitTime < 0) {
+                PS.audioPlay(mirrorSound);
                 this.hitTime = time;
             }
         }
@@ -306,26 +396,55 @@ const G = (function () {
         constructor(pos, color) {
             super(pos);
             this.color = color;
+            this.fadeStart = -1;
+        }
+
+        swappable() {
+            return this.fadeStart < 0;
         }
 
         draw() {
             let x = this.pos.x;
             let y = this.pos.y;
 
-            PS.alpha(x, y, 255);
-            PS.scale(x, y, 90);
-            PS.color(x, y, colors[this.color]);
-            PS.radius(x, y, 15);
+            if (this.fadeStart < 0) {
+                PS.alpha(x, y, 255);
+                PS.scale(x, y, 90);
+                PS.color(x, y, colors[this.color]);
+                PS.radius(x, y, 15);
 
-            // Set border so that selection will appear.
-            PS.border(x, y, 5);
-            PS.borderAlpha(x, y, 255);
-            PS.borderColor(x, y, colors[this.color]);
+                // Set border so that selection will appear.
+                PS.border(x, y, 5);
+                PS.borderAlpha(x, y, 255);
+                PS.borderColor(x, y, colors[this.color]);
+            } else {
+                PS.alpha(x, y, 255 * 2 * (1 - (time - this.fadeStart) / fadeTime));
+                PS.scale(x, y, 90);
+                PS.color(x, y, PS.COLOR_WHITE);
+            }
+        }
+
+        tick() {
+            super.tick();
+            if (this.fadeStart > 0 && time - this.fadeStart > fadeTime) {
+                this.destroy();
+            }
         }
 
         onHit(by) {
-            if (by.color === this.color) {
-                this.destroy();
+            if (by.color === this.color && this.fadeStart < 0) {
+                this.fadeStart = time;
+                this.hasGravity = false;
+                PS.audioPlay(impactSound, { path: audioPath });
+            }
+        }
+
+        onDestroy() {
+            super.onDestroy();
+            scene.blockCount--;
+            if (scene.blockCount <= 0) {
+                winTime = time;
+                PS.audioPlay(winSound);
             }
         }
     }
@@ -361,6 +480,7 @@ const G = (function () {
         if (index === CLR) {
             return null;
         } else if (index <= BBL) {
+            scene.blockCount++;
             return new Block(pos, index - RBL);
         } else if (index <= BMD) {
             const i = index - RER;
@@ -376,14 +496,18 @@ const G = (function () {
         }
     }
 
-    function load(level) {
+    function loadLevel(level) {
         let lvl = levels[level];
 
         scene.level = level;
         scene.size = lvl.size;
         scene.grid = [];
+        scene.blockCount = 0;
         timeSinceLoad = 0;
         timeSinceMove = 0;
+        winTime = -1;
+
+        PS.statusText(lvl.statusText);
 
         for (let y = 0; y < scene.size.y; y++) {
             scene.grid.push([]);
@@ -393,6 +517,24 @@ const G = (function () {
                 row.push(loadObject(lvl.data, new Vector(x, y)));
             }
         }
+
+        draw();
+    }
+
+    function clearLevel() {
+        for (let x = 0; x < scene.size.x; x++) {
+            for (let y = 0; y < scene.size.y; y++) {
+                setData(scene.grid, new Vector(x, y), null);
+            }
+        }
+    }
+
+    function loadSounds() {
+        PS.audioLoad(impactSound, { path: audioPath });
+        PS.audioLoad(clickSound);
+        PS.audioLoad(laserSound);
+        PS.audioLoad(mirrorSound);
+        PS.audioLoad(winSound);
     }
 
     function clear() {
@@ -421,6 +563,13 @@ const G = (function () {
     }
 
     function tick() {
+        if (selected != null) {
+            const sel = getData(scene.grid, selected);
+            if (sel == null || !sel.swappable()) {
+                selected = null;
+            }
+        }
+
         for (let x = 0; x < scene.size.x; x++) {
             for (let y = 0; y < scene.size.y; y++) {
                 let obj = getData(scene.grid, new Vector(x, y));
@@ -446,6 +595,15 @@ const G = (function () {
         time++;
         timeSinceLoad++;
         timeSinceMove++;
+
+        if (winTime > 0 && time - winTime > levelAdvanceTime) {
+            if (scene.level < levels.length - 1) {
+                loadLevel(scene.level + 1);
+            } else {
+                clearLevel();
+                PS.statusText("Congrats! You beat all the levels.");
+            }
+        }
     }
 
     function swap(pos1, pos2) {
@@ -461,9 +619,9 @@ const G = (function () {
 
     return {
         init: function () {
-            load(0);
+            loadLevel(0);
+            loadSounds();
 
-            draw();
             PS.timerStart(1, tick);
         },
 
@@ -471,6 +629,7 @@ const G = (function () {
             const vec = new Vector(x, y);
             const obj = getData(scene.grid, vec);
             if (obj && obj.swappable()) {
+                PS.audioPlay(clickSound);
                 if (selected == null) {
                     selected = vec;
                 } else if (vec.equals(selected)) {
