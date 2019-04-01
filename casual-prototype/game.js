@@ -57,6 +57,8 @@ const G = (function () {
     const fadeTime = 15;
     const levelAdvanceTime = 60;
 
+    const db = "opalescence";
+
     let id = 0;
 
     // MAP DATA
@@ -196,6 +198,7 @@ const G = (function () {
     let timeSinceMove = 0;
     let winTime = -1;
     let selected = null;
+    let moves = 0;
     const scene = {
         size: null,
         level: -1,
@@ -457,6 +460,7 @@ const G = (function () {
             if (scene.blockCount <= 0) {
                 winTime = time;
                 PS.audioPlay(winSound);
+                dbEvent("win");
             }
         }
     }
@@ -484,6 +488,10 @@ const G = (function () {
 
     function isClear(pos) {
         return getData(scene.grid, pos) === null;
+    }
+
+    function dbEvent(type) {
+        PS.dbEvent(db, "type", type, "level", scene.level, "moves", moves, "ticksSinceLoad", timeSinceLoad);
     }
 
     function loadObject(layout, pos) {
@@ -518,6 +526,7 @@ const G = (function () {
         timeSinceLoad = 0;
         timeSinceMove = 0;
         winTime = -1;
+        moves = 0;
 
         PS.statusText(lvl.statusText);
 
@@ -584,15 +593,22 @@ const G = (function () {
         PS.alpha(PS.ALL, y, 255);
 
         buttons = {};
-        if (scene.level > 0) drawButton(scene.size.x - 3, '⇤', function () {
-            loadLevel(scene.level - 1);
-        });
+        if (scene.level > 0) {
+            drawButton(scene.size.x - 3, '⇤', function () {
+                dbEvent("back");
+                loadLevel(scene.level - 1);
+            });
+        }
 
-        if (scene.level < levels.length - 1) drawButton(scene.size.x - 2, '⇥', function () {
-            loadLevel(scene.level + 1);
-        });
+        if (scene.level < levels.length - 1) {
+            drawButton(scene.size.x - 2, '⇥', function () {
+                dbEvent("skip");
+                loadLevel(scene.level + 1);
+            });
+        }
 
         drawButton(scene.size.x - 1, '↺', function () {
+            dbEvent("reset");
             loadLevel(scene.level);
         });
     }
@@ -664,6 +680,7 @@ const G = (function () {
             d1.move(pos2);
             d2.move(pos1);
             timeSinceMove = 0;
+            moves++;
         }
     }
 
@@ -672,12 +689,17 @@ const G = (function () {
         if (btn) btn();
     }
 
+    function onLogin(id, name) {
+        draw();
+        PS.timerStart(1, tick);
+    }
+
     return {
         init: function () {
             loadLevel(startLevel);
+            clear();
             loadSounds();
-
-            PS.timerStart(1, tick);
+            PS.dbInit(db, { login : onLogin });
         },
 
         touch: function (x, y) {
@@ -706,7 +728,8 @@ const G = (function () {
         },
 
         shutdown: function (options) {
-
+            PS.dbSend(db, "vcmiller");
+            PS.dbErase(db);
         }
     };
 }()); // end of IIFE
