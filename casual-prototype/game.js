@@ -267,7 +267,7 @@ const G = (function () {
             this.hitting = null;
         }
 
-        emit() {
+        emit(first) {
             if (this.child && !this.child.destroyed) return;
 
             const next = this.pos.plus(this.dir);
@@ -277,9 +277,11 @@ const G = (function () {
 
                 if (obj === null) {
                     this.child = new Laser(next, this.dir, this.color);
-                    PS.audioPlay(laserSound, { volume: 0.1 });
                     setData(scene.grid, next, this.child);
-                } else {
+                    this.child.emit(false);
+
+                    if (first) PS.audioPlay(laserSound, { volume: 0.1 });
+                } else if (first) {
                     obj.onHit(this);
                     this.hitting = obj;
                 }
@@ -324,7 +326,7 @@ const G = (function () {
 
         tick() {
             if (time - this.creationTime > laserTime) {
-                this.emit();
+                this.emit(true);
             }
         }
 
@@ -357,7 +359,7 @@ const G = (function () {
 
         tick() {
             if (time > laserTime) {
-                this.emit();
+                this.emit(true);
             }
         }
     }
@@ -386,7 +388,7 @@ const G = (function () {
 
         tick() {
             if (this.hitTime > 0 && time - this.hitTime > laserTime) {
-                this.emit();
+                this.emit(true);
             }
         }
 
@@ -728,8 +730,8 @@ const G = (function () {
         },
 
         shutdown: function (options) {
-            PS.dbSend(db, "vcmiller");
-            PS.dbSend(db, "alsensiba");
+            //PS.dbSend(db, "vcmiller");
+            //PS.dbSend(db, "alsensiba");
             PS.dbErase(db);
         }
     };
