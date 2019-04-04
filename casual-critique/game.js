@@ -42,6 +42,7 @@ const G = (function () {
     const dirs = [ RIGHT, UP, LEFT, DOWN ];
     const colors = [ 0xE847AE, 0x13CA91, 0x3B27BA ];
     const selectionColor = 0xFF9472;
+    const boulderColor = 0x888888;
     //const colors = [ 0xF85125, 0xFEA0FE, 0x79FFFE ];
     //const selectionColor = 0xFF8B8B;
     //const colors = [ 0xFFB3FD, 0x01FFC3, 0x01FFFF ];
@@ -113,13 +114,14 @@ const G = (function () {
     const BOM = id++; // Bomb
     const DOG = id++; // Dog
     const SPL = id++; // Splitter
+    const BLD = id++; // Boulder (not movable)
 
     // END MAP DATA
 
     const levels = [
         {
             size: new Vector(6, 6),
-            statusText: "Destroy blocks with lasers to win.",
+            statusText: "1. Destroy blocks with lasers to win.",
             data: [
                 [ CLR, CLR, CLR, GBL, CLR, CLR ],
                 [ CLR, CLR, CLR, CLR, CLR, CLR ],
@@ -131,7 +133,7 @@ const G = (function () {
         },
         {
             size: new Vector(6, 6),
-            statusText: "Click two adjacent blocks to swap them.",
+            statusText: "2. Click two adjacent blocks to swap them.",
             data: [
                 [ CLR, CLR, CLR, CLR, CLR, CLR ],
                 [ CLR, CLR, CLR, CLR, CLR, CLR ],
@@ -143,7 +145,7 @@ const G = (function () {
         },
         {
             size: new Vector(6, 6),
-            statusText: "Mirrors can redirect a laser.",
+            statusText: "3. Mirrors can redirect a laser.",
             data: [
                 [ CLR, CLR, CLR, CLR, CLR, CLR ],
                 [ CLR, CLR, CLR, CLR, CLR, CLR ],
@@ -155,7 +157,7 @@ const G = (function () {
         },
         {
             size: new Vector(6, 6),
-            statusText: "Blocks must be hit by the correct color.",
+            statusText: "4. Blocks must be hit by the correct color.",
             data: [
                 [ CLR, CLR, BBL, RBL, CLR, CLR ],
                 [ CLR, CLR, CLR, CLR, CLR, CLR ],
@@ -167,7 +169,7 @@ const G = (function () {
         },
         {
             size: new Vector(6, 6),
-            statusText: "Mirrors can change the color of light.",
+            statusText: "5. Mirrors can change the color of light.",
             data: [
                 [ CLR, CLR, BBL, RBL, CLR, CLR ],
                 [ CLR, CLR, CLR, CLR, CLR, CLR ],
@@ -179,7 +181,19 @@ const G = (function () {
         },
         {
             size: new Vector(6, 6),
-            statusText: "",
+            statusText: "6. If you mess up, you can restart with ↺.",
+            data: [
+                [ CLR, CLR, CLR, CLR, CLR, CLR ],
+                [ CLR, CLR, CLR, CLR, CLR, CLR ],
+                [ CLR, CLR, CLR, CLR, CLR, CLR ],
+                [ CLR, CLR, CLR, CLR, CLR, RED ],
+                [ BBL, CLR, CLR, RML, CLR, BML ],
+                [ RBL, CLR, CLR, BBL, CLR, RBL ]
+            ]
+        },
+        {
+            size: new Vector(6, 6),
+            statusText: "7. Practice what you've learned so far.",
             data: [
                 [ CLR, CLR, GBL, CLR, CLR, CLR ],
                 [ CLR, CLR, CLR, CLR, CLR, CLR ],
@@ -191,7 +205,7 @@ const G = (function () {
         },
         {
             size: new Vector(6, 6),
-            statusText: "",
+            statusText: "8. Be wary of gaps.",
             data: [
                 [ CLR, CLR, CLR, CLR, CLR, CLR ],
                 [ CLR, CLR, CLR, CLR, CLR, CLR ],
@@ -199,6 +213,18 @@ const G = (function () {
                 [ CLR, BBL, CLR, GBL, CLR, CLR ],
                 [ CLR, GMU, GBL, BML, CLR, CLR ],
                 [ CLR, GML, BBL, BMU, CLR, BEL ]
+            ]
+        },
+        {
+            size: new Vector(6, 6),
+            statusText: "9. Boulders cannot be moved or destroyed.",
+            data: [
+                [ CLR, CLR, CLR, CLR, CLR, CLR ],
+                [ CLR, CLR, CLR, CLR, CLR, CLR ],
+                [ CLR, CLR, CLR, CLR, CLR, CLR ],
+                [ CLR, CLR, CLR, CLR, RBL, CLR ],
+                [ CLR, RER, CLR, CLR, BLD, CLR ],
+                [ CLR, RMR, CLR, CLR, RBL, CLR ]
             ]
         }
     ];
@@ -494,6 +520,26 @@ const G = (function () {
         }
     }
 
+    class Boulder extends GridObject {
+        constructor(pos) {
+            super(pos);
+        }
+
+        swappable() {
+            return false;
+        }
+
+        draw() {
+            let x = this.pos.x;
+            let y = this.pos.y;
+
+            PS.alpha(x, y, 255);
+            PS.scale(x, y, 90);
+            PS.color(x, y, boulderColor);
+            PS.radius(x, y, 15);
+        }
+    }
+
     function toDir(vec) {
         for (let i = 0; i < dirs.length; i++) {
             if (dirs[i].equals(vec)) {
@@ -553,6 +599,8 @@ const G = (function () {
             } else {
                 return new Mirror(pos, dirs[dir], color);
             }
+        } else if (index === BLD) {
+            return new Boulder(pos);
         } else {
             return null; // Other object types implemented later.
         }
