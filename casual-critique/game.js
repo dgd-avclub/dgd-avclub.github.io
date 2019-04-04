@@ -830,8 +830,8 @@ const G = (function () {
         },
 
         shutdown: function (options) {
-            //PS.dbSend(db, "vcmiller");
-            //PS.dbSend(db, "alsensiba");
+            PS.dbSend(db, "vcmiller");
+            PS.dbSend(db, "alsensiba");
             PS.dbErase(db);
         }
     };
