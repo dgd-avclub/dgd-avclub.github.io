@@ -205,7 +205,7 @@ const G = (function () {
         },
         {
             size: new Vector(6, 6),
-            statusText: "8. Be wary of gaps.",
+            statusText: "8. Be wary of creating gaps.",
             data: [
                 [ CLR, CLR, CLR, CLR, CLR, CLR ],
                 [ CLR, CLR, CLR, CLR, CLR, CLR ],
@@ -225,6 +225,18 @@ const G = (function () {
                 [ CLR, CLR, CLR, CLR, RBL, CLR ],
                 [ CLR, RER, CLR, CLR, BLD, CLR ],
                 [ CLR, RMR, CLR, CLR, RBL, CLR ]
+            ]
+        },
+        {
+            size: new Vector(6, 6),
+            statusText: "10. What goes down won't come back up.",
+            data: [
+                [ CLR, CLR, CLR, CLR, CLR, CLR ],
+                [ GBL, CLR, GBL, CLR, CLR, CLR ],
+                [ BLD, CLR, BML, CLR, CLR, GED ],
+                [ BBL, CLR, BLD, CLR, CLR, BEU ],
+                [ BLD, CLR, GML, CLR, CLR, BML ],
+                [ GBL, CLR, BBL, CLR, CLR, GML ]
             ]
         }
     ];
@@ -536,7 +548,7 @@ const G = (function () {
             PS.alpha(x, y, 255);
             PS.scale(x, y, 90);
             PS.color(x, y, boulderColor);
-            PS.radius(x, y, 15);
+            PS.radius(x, y, 35);
         }
     }
 
