@@ -193,7 +193,19 @@ const G = (function () {
         },
         {
             size: new Vector(6, 6),
-            statusText: "7. Practice what you've learned so far.",
+            statusText: "7. Order matters.",
+            data: [
+                [ CLR, CLR, CLR, CLR, CLR, CLR ],
+                [ CLR, CLR, CLR, CLR, CLR, CLR ],
+                [ CLR, CLR, CLR, CLR, CLR, CLR ],
+                [ CLR, CLR, CLR, CLR, CLR, CLR ],
+                [ CLR, CLR, RMR, GMR, BMR, CLR ],
+                [ BER, CLR, GBL, RBL, BBL, CLR ]
+            ]
+        },
+        {
+            size: new Vector(6, 6),
+            statusText: "8. Practice what you've learned so far.",
             data: [
                 [ CLR, CLR, GBL, CLR, CLR, CLR ],
                 [ CLR, CLR, CLR, CLR, CLR, CLR ],
@@ -205,7 +217,7 @@ const G = (function () {
         },
         {
             size: new Vector(6, 6),
-            statusText: "8. Be wary of creating gaps.",
+            statusText: "9. Be wary of creating gaps.",
             data: [
                 [ CLR, CLR, CLR, CLR, CLR, CLR ],
                 [ CLR, CLR, CLR, CLR, CLR, CLR ],
@@ -217,7 +229,7 @@ const G = (function () {
         },
         {
             size: new Vector(6, 6),
-            statusText: "9. Boulders cannot be moved or destroyed.",
+            statusText: "10. Boulders cannot be moved or destroyed.",
             data: [
                 [ CLR, CLR, CLR, CLR, CLR, CLR ],
                 [ CLR, CLR, CLR, CLR, CLR, CLR ],
@@ -229,7 +241,7 @@ const G = (function () {
         },
         {
             size: new Vector(6, 6),
-            statusText: "10. What goes down won't come back up.",
+            statusText: "11. What goes down won't come back up.",
             data: [
                 [ CLR, CLR, CLR, CLR, CLR, CLR ],
                 [ GBL, CLR, GBL, CLR, CLR, CLR ],
