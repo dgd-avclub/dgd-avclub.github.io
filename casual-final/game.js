@@ -52,9 +52,15 @@ const G = (function () {
     //const colors = [ 0xFE53BB, 0xF5D300, 0x08F7FE ];
     //const selectionColor = 0x09FBD3;
     const bgColor = PS.COLOR_BLACK;
+    let flashy = true;
 
     const mirrorArrows = [ '⮞', '⮝', '⮜', '⮟' ];
     const emitterArrows = [ '⇢', '⇡', '⇠', '⇣'  ];
+    const flashGlyph = '☀';
+    const flashOffGlyph = '☼';
+    const skipGlyph = '⇥';
+    const backGlyph = '⇤';
+    const resetGlyph = '↺';
 
     const impactSound = "impact";
     const clickSound = "fx_click";
@@ -119,6 +125,21 @@ const G = (function () {
     // END MAP DATA
 
     const levels = [
+        {
+            size: new Vector(6, 6),
+            statusText: [
+                `To disable flashing lights, press ${flashGlyph}.`,
+                `Otherwise, press ${skipGlyph} to proceed.`
+            ],
+            data: [
+                [ CLR, CLR, CLR, CLR, CLR, CLR ],
+                [ CLR, CLR, CLR, CLR, CLR, CLR ],
+                [ CLR, CLR, CLR, CLR, CLR, CLR ],
+                [ CLR, CLR, CLR, CLR, CLR, CLR ],
+                [ CLR, CLR, CLR, CLR, CLR, CLR ],
+                [ CLR, CLR, CLR, CLR, CLR, CLR ]
+            ]
+        },
         {
             size: new Vector(6, 6),
             statusText: "1. Destroy blocks with lasers to win.",
@@ -241,7 +262,19 @@ const G = (function () {
         },
         {
             size: new Vector(6, 6),
-            statusText: "11. What goes down won't come back up.",
+            statusText: "11. Watch out for chain reactions.",
+            data: [
+                [ RER, CLR, CLR, CLR, CLR, REL ],
+                [ RBL, CLR, CLR, CLR, CLR, BLD ],
+                [ BLD, CLR, CLR, CLR, CLR, RBL ],
+                [ BBL, CLR, CLR, CLR, CLR, BLD ],
+                [ GBL, CLR, CLR, CLR, CLR, BEL ],
+                [ BBL, CLR, CLR, CLR, CLR, GEL ]
+            ]
+        },
+        {
+            size: new Vector(6, 6),
+            statusText: "12. What goes down won't come back up.",
             data: [
                 [ CLR, CLR, CLR, CLR, CLR, CLR ],
                 [ GBL, CLR, GBL, CLR, CLR, CLR ],
@@ -266,7 +299,8 @@ const G = (function () {
         level: -1,
         grid: [],
         lasers: [],
-        blockCount: 0
+        blockCount: 0,
+        statusText: ""
     };
 
     let buttons = {};
@@ -380,7 +414,12 @@ const G = (function () {
             let y = this.pos.y;
 
             PS.borderAlpha(x, y, 255);
-            let w = 30 + Math.sin(time / laserPeriod) * 4;
+            let w = 30;
+
+            if (flashy) {
+                w = 30 + Math.sin(time / laserPeriod) * 4;
+            }
+
             if (this.dir.x !== 0) {
                 PS.border(x, y, { left : 0, right: 0, top: w, bottom: w });
             } else {
@@ -389,7 +428,12 @@ const G = (function () {
 
             PS.borderColor(x, y, bgColor);
 
-            PS.color(x, y, this.glowColor(laserPeriod));
+            if (flashy) {
+                PS.color(x, y, this.glowColor(laserPeriod));
+            } else {
+                PS.color(x, y, colors[this.color]);
+            }
+
             PS.alpha(x, y, 255);
         }
 
@@ -454,12 +498,20 @@ const G = (function () {
                 PS.glyphColor(x, y, this.glowColor(emitterPeriod));
 
                 let f = Math.sin(time / laserPeriod);
-                let b = 7 - f * 2;
-                let s = 90 - f * 5;
+                let b = 7;
+                let s = 90;
+
+                if (flashy) {
+                    s = 90 - f * 5;
+                    b = 7 - f * 2;
+                    PS.borderColor(x, y, this.glowColor(laserPeriod));
+                } else {
+                    PS.borderColor(x, y, colors[this.color]);
+                }
+
                 PS.border(x, y, b);
                 PS.border(x, y, b);
                 PS.scale(x, y, s);
-                PS.borderColor(x, y, this.glowColor(laserPeriod));
             }
         }
 
@@ -637,12 +689,11 @@ const G = (function () {
         scene.size = lvl.size;
         scene.grid = [];
         scene.blockCount = 0;
+        scene.statusText = lvl.statusText;
         timeSinceLoad = 0;
         timeSinceMove = 0;
         winTime = -1;
         moves = 0;
-
-        PS.statusText(lvl.statusText);
 
         for (let y = 0; y < scene.size.y; y++) {
             scene.grid.push([]);
@@ -696,6 +747,12 @@ const G = (function () {
             PS.borderColor(selected.x, selected.y, selectionColor);
         }
 
+        if (Array.isArray(scene.statusText)) {
+            PS.statusText(scene.statusText[Math.floor(time / 90) % scene.statusText.length]);
+        } else {
+            PS.statusText(scene.statusText);
+        }
+
         drawHud();
     }
 
@@ -707,24 +764,37 @@ const G = (function () {
         PS.alpha(PS.ALL, y, 255);
 
         buttons = {};
+        drawButton(scene.size.x - 4, flashy ? flashGlyph : flashOffGlyph, function () {
+            flashy = !flashy;
+            if (scene.level === 0) {
+                if (flashy) {
+                    scene.statusText =`Flashing Lights Enabled. Press ${skipGlyph} to Continue.`
+                } else {
+                    scene.statusText =`Flashing Lights Disabled. Press ${skipGlyph} to Continue.`
+                }
+            }
+        });
+
         if (scene.level > 0) {
-            drawButton(scene.size.x - 3, '⇤', function () {
+            drawButton(scene.size.x - 3, backGlyph, function () {
                 dbEvent("back");
                 loadLevel(scene.level - 1);
             });
         }
 
         if (scene.level < levels.length - 1) {
-            drawButton(scene.size.x - 2, '⇥', function () {
+            drawButton(scene.size.x - 2, skipGlyph, function () {
                 dbEvent("skip");
                 loadLevel(scene.level + 1);
             });
         }
 
-        drawButton(scene.size.x - 1, '↺', function () {
-            dbEvent("reset");
-            loadLevel(scene.level);
-        });
+        if (scene.level > 0) {
+            drawButton(scene.size.x - 1, resetGlyph, function () {
+                dbEvent("reset");
+                loadLevel(scene.level);
+            });
+        }
     }
 
     function drawButton(x, glyph, callback) {
@@ -800,7 +870,10 @@ const G = (function () {
 
     function hudTouch(x) {
         let btn = buttons[x];
-        if (btn) btn();
+        if (btn) {
+            PS.audioPlay(clickSound);
+            btn();
+        }
     }
 
     function onLogin(id, name) {
