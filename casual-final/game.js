@@ -760,10 +760,11 @@ const G = (function () {
 
     function drawHud() {
         const y = scene.size.y;
-        PS.bgColor(PS.ALL, y, colors[0]);
-        PS.bgAlpha(PS.ALL, y, 0);
-        PS.color(PS.ALL, y, colors[0]);
-        PS.alpha(PS.ALL, y, 0);
+        const c = lerpColor(colors[0], bgColor, 0.7);
+        PS.bgColor(PS.ALL, y, c);
+        PS.bgAlpha(PS.ALL, y, 255);
+        PS.color(PS.ALL, y, c);
+        PS.alpha(PS.ALL, y, 255);
 
         buttons = {};
         drawButton(0, flashy ? flashGlyph : flashOffGlyph, function () {
