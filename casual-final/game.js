@@ -490,7 +490,11 @@ const G = (function () {
             PS.borderAlpha(x, y, 255);
             PS.glyph(x, y, mirrorArrows[toDir(this.dir)]);
             if (this.hitTime < 0) {
-                PS.glyphColor(x, y, PS.COLOR_WHITE);
+                if (selected && selected.equals(this.pos)) {
+                    PS.glyphColor(x, y, colors[this.color]);
+                } else {
+                    PS.glyphColor(x, y, PS.COLOR_WHITE);
+                }
                 PS.border(x, y, 5);
                 PS.scale(x, y, 90);
                 PS.borderColor(x, y, colors[this.color]);
@@ -764,7 +768,7 @@ const G = (function () {
         PS.alpha(PS.ALL, y, 255);
 
         buttons = {};
-        drawButton(scene.size.x - 4, flashy ? flashGlyph : flashOffGlyph, function () {
+        drawButton(0, flashy ? flashGlyph : flashOffGlyph, function () {
             flashy = !flashy;
             if (scene.level === 0) {
                 if (flashy) {
