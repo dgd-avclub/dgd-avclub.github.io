@@ -40,18 +40,12 @@ const G = (function () {
     const DOWN = new Vector(0, 1);
 
     const dirs = [ RIGHT, UP, LEFT, DOWN ];
-    const colors = [ 0xE847AE, 0x13CA91, 0x3B27BA ];
-    const selectionColor = 0xFF9472;
+    //const colors = [ 0xE847AE, 0x13CA91, 0x3B27BA ];
+    //const selectionColor = 0xFF9472;
+    const colors = [ 0xff0463, 0x4ee77c, 0x6a95fb ];
+    const selectionColor = 0xff9006;
     const boulderColor = 0x888888;
-    //const colors = [ 0xF85125, 0xFEA0FE, 0x79FFFE ];
-    //const selectionColor = 0xFF8B8B;
-    //const colors = [ 0xFFB3FD, 0x01FFC3, 0x01FFFF ];
-    //const selectionColor = 0x9D72FF;
-    //const colors = [ 0xFB33DB, 0x7FFF00, 0x0310EA ];
-    //const selectionColor = 0xFCF340;
-    //const colors = [ 0xFE53BB, 0xF5D300, 0x08F7FE ];
-    //const selectionColor = 0x09FBD3;
-    const bgColor = PS.COLOR_BLACK;
+    const bgColor = 0x041f30;
     let flashy = true;
 
     const mirrorArrows = [ '⮞', '⮝', '⮜', '⮟' ];
@@ -734,6 +728,10 @@ const G = (function () {
         PS.bgColor(PS.ALL, PS.ALL, bgColor);
         PS.alpha(PS.ALL, PS.ALL, 0);
         PS.border(PS.ALL, PS.ALL, 0);
+        
+        PS.gridColor(bgColor);
+        PS.gridShadow(true, lerpColor(bgColor, colors[0], 0.5));
+        PS.statusColor(colors[2]);
     }
 
     function draw() {
@@ -762,10 +760,10 @@ const G = (function () {
 
     function drawHud() {
         const y = scene.size.y;
-        PS.bgColor(PS.ALL, y, PS.COLOR_WHITE);
-        PS.bgAlpha(PS.ALL, y, 255);
-        PS.color(PS.ALL, y, PS.COLOR_WHITE);
-        PS.alpha(PS.ALL, y, 255);
+        PS.bgColor(PS.ALL, y, colors[0]);
+        PS.bgAlpha(PS.ALL, y, 0);
+        PS.color(PS.ALL, y, colors[0]);
+        PS.alpha(PS.ALL, y, 0);
 
         buttons = {};
         drawButton(0, flashy ? flashGlyph : flashOffGlyph, function () {
@@ -804,14 +802,14 @@ const G = (function () {
     function drawButton(x, glyph, callback) {
         const y = scene.size.y;
 
-        PS.color(x, y, 0xCCCCCC);
+        PS.color(x, y, bgColor);
         PS.scale(x, y, 90);
         PS.alpha(x, y, 255);
         PS.border(x, y, 2);
-        PS.borderColor(x, y, PS.COLOR_BLACK);
+        PS.borderColor(x, y, colors[2]);
         PS.borderAlpha(x, y, 255);
         PS.glyph(x, y, glyph);
-        PS.glyphColor(x, y, PS.COLOR_BLUE);
+        PS.glyphColor(x, y, colors[2]);
 
         buttons[x] = callback;
     }
