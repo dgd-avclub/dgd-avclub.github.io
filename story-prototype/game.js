@@ -435,7 +435,7 @@ const G = (function () {
                 new Pattern_Line_Bend(60 *  46, 0, 1, 4, new Vector(3, -3), new Vector(7, 0), new Vector(0, .5), 30, 30, 58, -12, 1),
             ];
 
-            time = 60 * 39;
+            //time = 60 * 39;
         }
 
         tick() {
