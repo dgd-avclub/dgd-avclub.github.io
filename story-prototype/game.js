@@ -69,7 +69,7 @@ const G = (function () {
         }
 
         times(other) {
-            if (typeof this === typeof other) {
+            if (other instanceof Color) {
                 return new Color(this.r * other.r, this.g * other.g, this.b * other.b);
             } else {
                 return new Color(this.r * other, this.g * other, this.b * other);
@@ -112,11 +112,8 @@ const G = (function () {
 
     const flowerImageFile = "images/flower.png";
     let flowerImage = null;
-    const flowerRate = 90;
-    const flowerSpeed = 2;
-    const flowerCount = 5;
-    const flowerDelayPer = 10;
-    const flowerDelayStart = 20;
+    const flowerColor = 0xFF00E1;
+    const flowerAlpha = 100;
 
     let keysHeld = {};
 
@@ -129,91 +126,201 @@ const G = (function () {
     let time = 0;
     let timeSinceLoad = 0;
 
-    const scene = {
-        objects: [],
-        view: new Vector(0, 0),
-    };
-
-    class Level {
+    class Scene {
         constructor(imageFile){
             this.imageFile = imageFile;
-            this.image = null;
             this.waterMap = null;
+            this.objects = [];
+            this.streamSize = 4;
+            this.addWater = 0;
         }
 
-        load(image){
-            scene.view.y = image.height - screenSize.y;
-            this.image = image;
+        load(image) {
             this.waterMap = [];
 
-            for (let x = 0; x < image.width; x++) {
-                let col = [];
-
-                for (let y = 0; y < image.height; y++) {
-                    let c = image.data[y * image.width + x];
-                    if (c === PS.COLOR_GREEN) {
-                        c = groundColor.plus(Color.random().times(groundVariance)).toRGB();
-                        this.image.data[y * image.width + x] = c;
-                    }
-
-                    col.push({
+            for (let y = 0; y < screenSize.y; y++) {
+                let row = [];
+                for (let x = 0; x < screenSize.x; x++) {
+                    row.push({
                         phase: Math.random() * 3.1415,
                         period: Math.random() * waterPeriodVariance + waterPeriod,
-                        alpha: 0
+                        alpha: 0,
+                        isWater: x > (screenSize.x - this.streamSize) / 2 && x < (screenSize.x + this.streamSize) / 2,
+                        grassColor: new Color(
+                            groundColor.r + Math.random() * groundVariance,
+                            groundColor.g + Math.random() * groundVariance,
+                            groundColor.b + Math.random() * groundVariance).toRGB()
                     });
                 }
 
-                this.waterMap.push(col);
+                this.waterMap.push(row);
             }
+
+            this.objects.push(new Emitter());
         }
 
         isWater(pos) {
-            if (pos.x < 0 || pos.y < 0 || pos.x >= this.image.width || pos.y >= this.image.height) {
-                return false;
-            }
-            return this.image.data[pos.y * this.image.width + pos.x] === PS.COLOR_BLUE;
+            if (!inBounds(pos)) return false;
+
+            return this.waterMap[pos.y][pos.x].isWater;
         }
 
         tick() {
             if (this.waterMap) {
-                for (let x = 0; x < this.image.width; x++) {
-                    for (let y = 0; y < this.image.height; y++) {
-                        let w = this.waterMap[x][y];
-                        if (w) {
+                for (let x = 0; x < screenSize.x; x++) {
+                    for (let y = 0; y < screenSize.y; y++) {
+                        let w = this.waterMap[y][x];
+                        if (w && w.isWater) {
                             w.alpha = Math.sin(time / w.period + w.phase) * 0.5 + 0.5;
                         }
                     }
                 }
-            }
 
-            if (time % scrollSpeed === 0) {
-                scene.view.y--;
+                if (time % scrollSpeed === 0) {
+                    this.advance();
+                }
+
+                for (const obj of this.objects) {
+                    obj.tick();
+                }
+
+                this.objects = this.objects.filter(function(val) { return !val.destroyed });
             }
         }
 
+        advance() {
+            let r = this.waterMap[screenSize.y - 1];
+            this.waterMap.splice(screenSize.y - 1, 1);
+            this.waterMap.splice(0, 0, r);
+
+            while (this.addWater > 0) {
+                this.streamSize++;
+                this.addWater--;
+            }
+
+            const s = Math.floor((screenSize.x - this.streamSize) / 2);
+            for (let x = s; x < s + this.streamSize; x++) {
+                if (x >= 0 && x < screenSize.x) {
+                    this.waterMap[0][x].isWater = true;
+                }
+            }
+        }
+
+        addStreamSize() {
+            this.addWater++;
+        }
+
         draw() {
-            if (this.image) {
-                PS.imageBlit(this.image, -scene.view.x, -scene.view.y);
-                for (let x = 0; x < this.image.width; x++) {
-                    for (let y = 0; y < this.image.height; y++) {
-                        let sx = x - scene.view.x;
-                        let sy = y - scene.view.y;
-                        if (inBounds(new Vector(sx, sy)) && this.isWater(new Vector(x, y))) {
-                            let fy = y + Math.floor(time / waterFlowSpeed);
-                            fy = ((fy % this.image.height) + this.image.height) % this.image.height;
-                            let w = this.waterMap[x][fy];
-                            let c = Color.lerp(waterColor, waterVarianceColor, w.alpha);
-                            PS.color(sx, sy, c.toRGB());
+            if (this.waterMap) {
+                PS.gridPlane(0);
+                for (let x = 0; x < screenSize.x; x++) {
+                    for (let y = 0; y < screenSize.y; y++) {
+                        PS.alpha(x, y, 255);
+
+                        let fy = y + Math.floor(time / waterFlowSpeed);
+                        fy %= screenSize.y;
+
+                        let w = this.waterMap[y][x];
+                        if (w.isWater) {
+                            let c = Color.lerp(waterColor, waterVarianceColor, this.waterMap[fy][x].alpha);
+                            PS.color(x, y, c.toRGB());
+                        } else {
+                            PS.color(x, y, w.grassColor);
                         }
                     }
+                }
+
+                for (const obj of this.objects) {
+                    obj.draw();
                 }
             }
         }
     }
 
-    const levels = [
-        new Level("images/levels/level1.bmp")
-    ];
+    class Pattern {
+        constructor(start, delay, repeats) {
+            this.start = start;
+            this.delay = delay;
+            this.repeats = repeats;
+            this.lastUse = start - delay;
+        }
+
+        fire() { }
+
+        update() {
+            if (flowerImage && time - this.lastUse === this.delay && this.repeats > 0) {
+                this.repeats--;
+                this.lastUse = time;
+                this.fire();
+            }
+        }
+    }
+
+    class Pattern_Line extends Pattern {
+        constructor(start, delay, repeats, count, pos, dir, vel, delayStart, delayPer) {
+            super(start, delay, repeats);
+            this.count = count;
+            this.pos = pos;
+            this.dir = dir;
+            this.vel = vel;
+            this.delayStart = delayStart;
+            this.delayPer = delayPer;
+        }
+
+        fire() {
+            for (let i = 0; i < this.count; i++) {
+                scene.objects.push(new Flower(this.pos.plus(this.dir.times(i)), this.vel, i * this.delayPer + this.delayStart));
+            }
+        }
+    }
+
+    class Pattern_Line_Bend extends Pattern_Line {
+        constructor(start, delay, repeats, count, pos, dir, vel, delayStart, delayPer, bendTime, bendTimePer, bendDir) {
+            super(start, delay, repeats, count, pos, dir, vel, delayStart, delayPer);
+            this.bendTime = bendTime;
+            this.bendTimePer = bendTimePer;
+            this.bendDir = bendDir;
+        }
+
+        fire() {
+            for (let i = 0; i < this.count; i++) {
+                scene.objects.push(new Flower_Bend(
+                    this.pos.plus(this.dir.times(i)), this.vel, i * this.delayPer + this.delayStart,
+                    this.bendTime + this.bendTimePer * i, this.bendDir, 1));
+            }
+        }
+    }
+
+    class Pattern_Square extends Pattern {
+        constructor(start, delay, repeats, radius, speed, bends, dir) {
+            super(start, delay, repeats);
+            this.radius = radius;
+            this.speed = speed;
+            this.bends = bends;
+            this.dir = dir;
+        }
+
+        fire() {
+            const x1 = 15 - this.radius;
+            const x2 = 14 + this.radius;
+
+            const bendDelay = Math.floor((this.radius * 2 - 1) / this.speed);
+
+            if (this.dir === -1) {
+                scene.objects.push(new Flower_Bend(new Vector(x1, x1), new Vector(this.speed, 0), 30, bendDelay, -1, this.bends));
+                scene.objects.push(new Flower_Bend(new Vector(x2, x1), new Vector(0, this.speed), 30, bendDelay, -1, this.bends));
+                scene.objects.push(new Flower_Bend(new Vector(x2, x2), new Vector(-this.speed, 0), 30, bendDelay, -1, this.bends));
+                scene.objects.push(new Flower_Bend(new Vector(x1, x2), new Vector(0, -this.speed), 30, bendDelay, -1, this.bends));
+            } else {
+                scene.objects.push(new Flower_Bend(new Vector(x1, x1), new Vector(0, this.speed), 30, bendDelay, 1, this.bends));
+                scene.objects.push(new Flower_Bend(new Vector(x2, x1), new Vector(-this.speed, 0), 30, bendDelay, 1, this.bends));
+                scene.objects.push(new Flower_Bend(new Vector(x2, x2), new Vector(0, -this.speed), 30, bendDelay, 1, this.bends));
+                scene.objects.push(new Flower_Bend(new Vector(x1, x2), new Vector(this.speed, 0), 30, bendDelay, 1, this.bends));
+            }
+        }
+    }
+
+    const scene = new Scene("images/levels/level1.bmp");
 
     class SceneObject {
         constructor(pos, size) {
@@ -224,6 +331,7 @@ const G = (function () {
             this.collides = false;
             this.canExit = false;
             this.type = "SceneObject";
+            this.movement = new Vector(0, 0);
         }
 
         overlaps(other) {
@@ -267,9 +375,19 @@ const G = (function () {
             return solidHit;
         }
 
-        move(to) {
-            let exit = !inBounds(to) || !inBounds(to.plus(this.size).minus(new Vector(1, 1)));
-            if (exit) {
+        move(amount) {
+            this.movement = this.movement.plus(amount);
+            amount = new Vector(Math.floor(this.movement.x), Math.floor(this.movement.y));
+            this.movement = this.movement.minus(amount);
+
+            if (amount.x === 0 && amount.y === 0) {
+                return;
+            }
+
+            let to = this.pos.plus(amount);
+            let wasOut = !inBounds(this.pos) || !inBounds(this.pos.plus(this.size).minus(new Vector(1, 1)));
+            let out = !inBounds(to) || !inBounds(to.plus(this.size).minus(new Vector(1, 1)));
+            if (out && !wasOut) {
                 this.onExit();
                 if (!this.canExit) {
                     return;
@@ -286,30 +404,73 @@ const G = (function () {
         }
     }
 
+    class Emitter extends SceneObject {
+        constructor() {
+            super(new Vector(0, 0), new Vector(0, 0));
+            this.patterns = [
+                new Pattern_Line(60 *  1, 0, 1, 4, new Vector(3, -3), new Vector(7, 0), new Vector(0, .5), 30, 30),
+                new Pattern_Line(60 *  4, 0, 1, 4, new Vector(35, 3), new Vector(0, 7), new Vector(-.5, 0), 30, 30),
+                new Pattern_Line(60 *  7, 0, 1, 4, new Vector(27, 35), new Vector(-7, 0), new Vector(0, -.5), 30, 30),
+                new Pattern_Line(60 *  10, 0, 1, 4, new Vector(-3, 27), new Vector(0, -7), new Vector(.5, 0), 30, 30),
+
+                new Pattern_Line(60 * 13, 90, 3, 6, new Vector(2, 2), new Vector(5, 0), new Vector(0, 1.5), 20, 20),
+
+                new Pattern_Line(60 *  19, 90, 3, 6, new Vector(35, 1), new Vector(0, 7), new Vector(-.5, 0), 30, 30),
+                new Pattern_Line(60 *  19, 90, 3, 6, new Vector(-3, 29), new Vector(0, -7), new Vector(.5, 0), 30, 30),
+
+                new Pattern_Square(60 * 25, 0, 1, 15, 0.5, 6, -1),
+                new Pattern_Square(60 * 26.5, 0, 1, 10, 0.5, 6, 1),
+                new Pattern_Square(60 * 28, 0, 1, 5, 0.5, 6, -1),
+
+                new Pattern_Square(60 * 32, 0, 1, 15, 0.5, 6, 1),
+                new Pattern_Square(60 * 32, 0, 1, 10, 0.5, 7, 1),
+                new Pattern_Square(60 * 32, 0, 1, 5, 0.5, 8, 1),
+
+                new Pattern_Line_Bend(60 *  40, 0, 1, 2, new Vector(3, -3), new Vector(7, 0), new Vector(0, .5), 30, 30, 58, -24, 1),
+                new Pattern_Line_Bend(60 *  42, 0, 1, 2, new Vector(17, -3), new Vector(7, 0), new Vector(0, .5), 30, 30, 34, -24, -1),
+
+                new Pattern_Line_Bend(60 *  44, 0, 1, 2, new Vector(3, -3), new Vector(7, 0), new Vector(0, .5), 30, 30, 58, -24, 1),
+                new Pattern_Line_Bend(60 *  45, 0, 1, 2, new Vector(17, -3), new Vector(7, 0), new Vector(0, .5), 30, 30, 34, -24, -1),
+
+                new Pattern_Line_Bend(60 *  46, 0, 1, 4, new Vector(3, -3), new Vector(7, 0), new Vector(0, .5), 30, 30, 58, -12, 1),
+            ];
+
+            time = 60 * 39;
+        }
+
+        tick() {
+            for (const pattern of this.patterns) {
+                pattern.update();
+            }
+        }
+    }
+
     class Moon extends SceneObject {
         constructor(pos) {
-            super(pos, 0);
-            this.size = 1;
+            super(pos, new Vector(1, 1));
             this.type = "Moon";
         }
 
         draw() {
             PS.gridPlane(1);
 
-            let o = this.size / 2;
-            for (let x = 0; x < this.size + 1; x++) {
-                for (let y = 0; y < this.size + 1; y++) {
+            let o = this.size.x / 2;
+            for (let x = 0; x < this.size.x + 1; x++) {
+                for (let y = 0; y < this.size.x + 1; y++) {
                     let off = new Vector(x - o, y - o);
                     let pos = this.pos.plus(off);
 
-                    let f = Math.sqrt(off.x * off.x + off.y * off.y) - this.size / 2 + 0.3;
+                    let f = Math.sqrt(off.x * off.x + off.y * off.y) - this.size.x / 2 + 0.3;
 
-                    let wpos = new Vector(Math.floor(pos.x + scene.view.x), Math.floor(pos.y + scene.view.y));
+                    let wpos = new Vector(Math.floor(pos.x), Math.floor(pos.y));
 
-                    if (inBounds(pos) && levels[0].isWater(wpos)) {
+                    if (inBounds(pos) && scene.isWater(wpos)) {
                         PS.color(pos.x, pos.y, moonColor);
 
-                        let w = levels[0].waterMap[wpos.x][wpos.y].alpha;
+                        let fy = wpos.y + Math.floor(time / waterFlowSpeed);
+                        fy %= screenSize.y;
+
+                        let w = scene.waterMap[fy][wpos.x].alpha;
                         PS.alpha(pos.x, pos.y, Math.min(1, 1 - f) * Math.min(1, w * 0.25 + 0.25) * 255);
                     }
                 }
@@ -317,8 +478,9 @@ const G = (function () {
         }
 
         advance() {
-            this.size += 1;
+            this.size.x += 1;
             this.pos.y -= 1;
+            scene.addStreamSize();
         }
     }
 
@@ -370,37 +532,96 @@ const G = (function () {
 
                 if (move.x !== 0 || move.y !== 0) {
                     this.lastMove = time;
-                    this.move(this.pos.plus(move));
+                    this.move(move);
                 }
             }
         }
     }
 
     class Flower extends SpriteObject {
-        constructor(pos, delay) {
-            super(pos, flowerImage);
+        constructor(pos, vel, delay) {
+            super(find("Moon").pos, flowerImage);
+            this.startPos = pos;
             this.collides = true;
             this.solid = false;
             this.canExit = true;
             this.type = "Flower";
             this.startTime = time + delay;
+            this.vel = vel;
         }
 
         tick() {
-            if (time > this.startTime) {
-                this.move(this.pos.plus(DOWN.times(flowerSpeed)));
+            if (time >= this.startTime) {
+                this.moveFired();
+                this.visible = true;
+            } else {
+                this.moveTowardsStart();
+                this.visible = false;
+            }
+        }
+
+        moveTowardsStart(){
+            this.move(this.startPos.minus(this.pos).times(1.0 / (this.startTime - time)));
+        }
+
+        moveFired() {
+            this.move(this.vel);
+        }
+
+        draw() {
+            super.draw();
+            let p = this.pos.plus(new Vector(1, 1));
+            if (time < this.startTime && inBounds(p)) {
+                PS.gridPlane(100);
+                PS.color(p.x, p.y, flowerColor);
+                PS.alpha(p.x, p.y, flowerAlpha);
             }
         }
 
         onHit(by) {
-            if (by.type === 'Player') {
+            if (time >= this.startTime && by instanceof Player) {
                 find('Moon').advance();
                 this.destroy();
             }
         }
 
         onExit() {
-            this.destroy();
+            if (time > this.startTime) {
+                this.destroy();
+            }
+        }
+    }
+
+    class Flower_Bend extends Flower {
+        constructor(pos, vel, delay, changeDelay, bendDir, bendCount) {
+            super(pos, vel, delay);
+            this.changeDelay = changeDelay;
+            this.bendDir = bendDir;
+            this.bendCount = bendCount;
+        }
+
+        bend() {
+            this.bendCount--;
+
+            const x = this.vel.x;
+            const y = this.vel.y;
+
+            this.vel = new Vector(y * this.bendDir, x * -this.bendDir);
+        }
+
+        tick() {
+            const t = time - this.startTime;
+            if (this.bendCount > 0 && t >= this.changeDelay && (t % this.changeDelay === 0)) {
+                this.bend();
+            }
+
+            super.tick();
+        }
+    }
+
+    class Flower_ZigZag extends  Flower_Bend {
+        bend() {
+            this.bendDir = -1;
         }
     }
 
@@ -413,15 +634,6 @@ const G = (function () {
         }
 
         return null;
-    }
-
-    function toDir(vec) {
-        for (let i = 0; i < dirs.length; i++) {
-            if (dirs[i].equals(vec)) {
-                return i;
-            }
-        }
-        return -1;
     }
 
     function inBounds(pos) {
@@ -453,13 +665,11 @@ const G = (function () {
             flowerImage = img;
         });
 
-        for (let i = 0; i < levels.length; i++) {
-            const iCpy = i;
-            PS.imageLoad(levels[iCpy].imageFile, function (img) {
-                levels[iCpy].load(img);
-            }, 1);
-        }
+        PS.imageLoad(scene.imageFile, function (img) {
+            scene.load(img);
+        }, 1);
     }
+
     function clear() {
         PS.gridSize(screenSize.x, screenSize.y);
 
@@ -472,47 +682,16 @@ const G = (function () {
         PS.statusColor(PS.COLOR_BLACK);
     }
 
-    function basicFlowerPattern() {
-        let spacing = screenSize.x / flowerCount;
-        for (let i = 0; i < flowerCount; i++) {
-            let x = Math.floor(i * spacing);
-            scene.objects.push(new Flower(new Vector(x, flowerImage.height), i * flowerDelayPer + flowerDelayStart));
-        }
-    }
-
-    function draw() {
-        clear();
-        levels[0].draw();
-
-        for (let i = 0; i < scene.objects.length; i++) {
-            scene.objects[i].draw();
-        }
-    }
-
     function tick() {
-        for (let i = 0; i < scene.objects.length; i++) {
-            if (!scene.objects[i].destroyed) {
-                scene.objects[i].tick();
-            }
-        }
-
-        if (flowerImage && time % flowerRate === 0) {
-            basicFlowerPattern();
-        }
-
-        levels[0].tick();
-
-
-        scene.objects = scene.objects.filter(function(val) { return !val.destroyed });
-
-        draw();
+        scene.tick();
+        clear();
+        scene.draw();
 
         time++;
         timeSinceLoad++;
     }
 
     function onLogin(id, name) {
-        draw();
         PS.timerStart(1, tick);
     }
 
