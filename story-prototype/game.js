@@ -105,7 +105,7 @@ const G = (function () {
     const waterVarianceColor = waterColor.plus(new Color(waterVariance, waterVariance, waterVariance))
     const waterFlowSpeed = 5;
 
-    const moonColor = PS.COLOR_WHITE;
+    const moonColor = PS.COLOR_YELLOW; //PS.COLOR_WHITE;
 
     const playerImageFile = "images/player.png";
     const playerMoveDelay = 1;
