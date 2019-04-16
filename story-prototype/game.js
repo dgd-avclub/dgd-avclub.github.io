@@ -125,6 +125,9 @@ const G = (function () {
 
     let time = 0;
     let timeSinceLoad = 0;
+    
+    // flower counter to trigger ending
+    let flowersHit = 0;
 
     class Scene {
         constructor(imageFile){
@@ -580,6 +583,11 @@ const G = (function () {
 
         onHit(by) {
             if (time >= this.startTime && by instanceof Player) {
+                flowersHit += 1;
+                if (flowersHit >= 5)
+                    PS.statusText("D O  N O T  T O U C H");
+                if (flowersHit >= 10)
+                    PS.statusText("F O O L I S H  M O R T A L");
                 find('Moon').advance();
                 this.destroy();
             }
