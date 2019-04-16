@@ -93,7 +93,7 @@ const G = (function () {
     const useDB = false;
 
     const screenSize = new Vector(32, 32);
-    const scrollSpeed = 2;//15;
+    const scrollSpeed = 15;
 
     const groundColor = new Color(0, 0.1, 0);
     const groundVariance = 0.02;
@@ -128,8 +128,6 @@ const G = (function () {
     
     // flower counter to trigger ending
     let flowersHit = 0;
-    PS.statusColor(PS.COLOR_WHITE);
-    PS.statusText(flowersHit);
 
     class Scene {
         constructor(imageFile){
@@ -585,6 +583,7 @@ const G = (function () {
 
         onHit(by) {
             if (time >= this.startTime && by instanceof Player) {
+                PS.statusColor(PS.COLOR_WHITE);
                 flowersHit += 1;
                 if (flowersHit >= 5)
                     PS.statusText("D O  N O T  T O U C H");
