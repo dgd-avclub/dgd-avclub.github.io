@@ -736,8 +736,11 @@ const G = (function () {
 
         // draw chasm
         if (!inControl) {
-            for (var j = 0; j < 6; j++)
+            PS.gridPlane(100);
+            for (let j = 0; j < 6; j++) {
+                PS.alpha(PS.ALL, j, 255);
                 PS.color(PS.ALL, j, PS.COLOR_BLACK);
+            }
         }
 
 
