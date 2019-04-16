@@ -128,6 +128,7 @@ const G = (function () {
     
     // flower counter to trigger ending
     let flowersHit = 0;
+    PS.statusColor(PS.COLOR_WHITE);
 
     class Scene {
         constructor(imageFile){
@@ -687,7 +688,7 @@ const G = (function () {
         PS.border(PS.ALL, PS.ALL, 0);
         
         PS.gridColor(PS.COLOR_BLACK);
-        //PS.statusColor(PS.COLOR_BLACK);
+        PS.statusColor(PS.COLOR_BLACK);
     }
 
     function tick() {
