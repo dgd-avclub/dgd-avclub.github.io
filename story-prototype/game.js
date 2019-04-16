@@ -189,6 +189,11 @@ const G = (function () {
 
                 this.objects = this.objects.filter(function(val) { return !val.destroyed });
             }
+
+            // check if all flowers are collected
+            PS.statusColor(PS.COLOR_WHITE);
+            PS.statusText("TEST TEXT");
+
         }
 
         advance() {
