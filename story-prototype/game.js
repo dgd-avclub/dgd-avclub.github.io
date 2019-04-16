@@ -93,7 +93,7 @@ const G = (function () {
     const useDB = false;
 
     const screenSize = new Vector(32, 32);
-    const scrollSpeed = 15;
+    const scrollSpeed = 2;//15;
 
     const groundColor = new Color(0, 0.1, 0);
     const groundVariance = 0.02;
