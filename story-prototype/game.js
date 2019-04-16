@@ -129,6 +129,9 @@ const G = (function () {
     // flower counter to trigger ending
     let flowersHit = 0;
 
+    // whether player is in control
+    let inControl = true;
+
     class Scene {
         constructor(imageFile){
             this.imageFile = imageFile;
@@ -190,9 +193,10 @@ const G = (function () {
                 this.objects = this.objects.filter(function(val) { return !val.destroyed });
             }
 
-            // check if all flowers are collected
+            // default empty status line
+
             PS.statusColor(PS.COLOR_WHITE);
-            PS.statusText(flowersHit);
+            PS.statusText("");
 
         }
 
@@ -242,6 +246,7 @@ const G = (function () {
                     obj.draw();
                 }
             }
+
         }
     }
 
@@ -523,27 +528,42 @@ const G = (function () {
         }
 
         tick() {
-            if (time - this.lastMove > playerMoveDelay) {
-                let move = new Vector(0, 0);
-                if (keysHeld[PS.KEY_ARROW_LEFT]) {
-                    move = move.plus(LEFT);
-                }
-                if (keysHeld[PS.KEY_ARROW_RIGHT]) {
-                    move = move.plus(RIGHT);
-                }
-                if (keysHeld[PS.KEY_ARROW_UP]) {
-                    move = move.plus(UP);
-                }
-                if (keysHeld[PS.KEY_ARROW_DOWN]) {
-                    move = move.plus(DOWN);
-                }
 
-                if (move.x !== 0 || move.y !== 0) {
-                    this.lastMove = time;
-                    this.move(move);
+            // can control movements outside of cutscene
+            if (inControl) {
+                if (time - this.lastMove > playerMoveDelay) {
+                    let move = new Vector(0, 0);
+                    if (keysHeld[PS.KEY_ARROW_LEFT]) {
+                        move = move.plus(LEFT);
+                    }
+                    if (keysHeld[PS.KEY_ARROW_RIGHT]) {
+                        move = move.plus(RIGHT);
+                    }
+                    if (keysHeld[PS.KEY_ARROW_UP]) {
+                        move = move.plus(UP);
+                    }
+                    if (keysHeld[PS.KEY_ARROW_DOWN]) {
+                        move = move.plus(DOWN);
+                    }
+
+                    if (move.x !== 0 || move.y !== 0) {
+                        this.lastMove = time;
+                        this.move(move);
+                    }
                 }
             }
+            else { // cutscene
+
+                // uncontrollable movement up
+                let pmd = 20;
+                if (time - this.lastMove > pmd) {
+                    this.lastMove = time;
+                    this.move(UP);
+                }
+
+            }
         }
+
     }
 
     class Flower extends SpriteObject {
@@ -687,8 +707,8 @@ const G = (function () {
         PS.alpha(PS.ALL, PS.ALL, 0);
         PS.border(PS.ALL, PS.ALL, 0);
         
-        //PS.gridColor(PS.COLOR_BLACK);
-        //PS.statusColor(PS.COLOR_BLACK);
+        PS.gridColor(PS.COLOR_BLACK);
+        PS.statusColor(PS.COLOR_WHITE);
     }
 
     function tick() {
@@ -696,17 +716,30 @@ const G = (function () {
         clear();
         scene.draw();
 
-        /// bad ending text
+        /// bad ending
+
         if (flowersHit >= 5)
             PS.statusText("DO NOT TOUCH.");
         if (flowersHit >= 15)
-            PS.statusText("YOU KNOW NOT WHAT YOU DO");
+            PS.statusText("THAT IS NOT WISE.");
         if (flowersHit >= 25)
             PS.statusText("I WARN YOU");
         if (flowersHit >= 35)
             PS.statusText("FOOLISH MORTAL");
         if (flowersHit >= 45)
-            PS.statusText("F̛͞A̴̴̷̕C̨̀͜͟͜Ȩ͞ ̶͡M̷̷͘͟Y̶͟͏ ̷̛͡͡W̵͜҉̸̧Ŕ̛A͘͟T̛҉̀̀H͢͠");
+            PS.statusText("DO NOT DEAL WITH POWERS");
+        if (flowersHit >= 55) {
+            PS.statusText("BE̶͜Y̸͟O̴͟N͞͡͝D̢̢ ҉̴Y͜Ờ͞U͘R̸̛͝ ́̀҉C͠O͢͞N̸T̷̛RO̧̡͜L͢");
+            inControl = false;
+
+        }
+
+        // draw chasm
+        if (!inControl) {
+            for (var j = 0; j < 6; j++)
+                PS.color(PS.ALL, j, PS.COLOR_BLACK);
+        }
+
 
         time++;
         timeSinceLoad++;
