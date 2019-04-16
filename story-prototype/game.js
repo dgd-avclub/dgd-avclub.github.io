@@ -687,7 +687,7 @@ const G = (function () {
         PS.border(PS.ALL, PS.ALL, 0);
         
         PS.gridColor(PS.COLOR_BLACK);
-        PS.statusColor(PS.COLOR_BLACK);
+        //PS.statusColor(PS.COLOR_BLACK);
     }
 
     function tick() {
