@@ -90,7 +90,7 @@ const G = (function () {
     const dirs = [ RIGHT, UP, LEFT, DOWN ];
 
     const db = "moon";
-    const useDB = false;
+    const useDB = true;
 
     const screenSize = new Vector(32, 32);
     const scrollSpeed = 15;
@@ -114,6 +114,7 @@ const G = (function () {
     let flowerImage = null;
     const flowerColor = 0xFF00E1;
     const flowerAlpha = 100;
+    let homeEnding = false;
 
     let keysHeld = {};
 
@@ -192,11 +193,6 @@ const G = (function () {
 
                 this.objects = this.objects.filter(function(val) { return !val.destroyed });
             }
-
-            // default empty status line
-
-            PS.statusColor(PS.COLOR_WHITE);
-            PS.statusText("");
 
         }
 
@@ -455,6 +451,13 @@ const G = (function () {
             for (const pattern of this.patterns) {
                 pattern.update();
             }
+
+            if (time === 60 * 55 && flowersHit < 55) {
+                homeEnding = true;
+                PS.statusText("You return home, ignorant");
+                dbEvent("home");
+                sendDB();
+            }
         }
     }
 
@@ -610,6 +613,26 @@ const G = (function () {
             if (time >= this.startTime && by instanceof Player) {
                 flowersHit += 1;
                 find('Moon').advance();
+                dbEvent("hit");
+
+                /// bad ending
+                if (flowersHit >= 5)
+                    PS.statusText("DO NOT TOUCH.");
+                if (flowersHit >= 15)
+                    PS.statusText("THAT IS NOT WISE.");
+                if (flowersHit >= 25)
+                    PS.statusText("I WARN YOU");
+                if (flowersHit >= 35)
+                    PS.statusText("FOOLISH MORTAL");
+                if (flowersHit >= 45)
+                    PS.statusText("DO NOT DEAL WITH POWERS");
+                if (flowersHit >= 55) {
+                    PS.statusText("BE̶͜Y̸͟O̴͟N͞͡͝D̢̢ ҉̴Y͜Ờ͞U͘R̸̛͝ ́̀҉C͠O͢͞N̸T̷̛RO̧̡͜L͢");
+                    inControl = false;
+                    dbEvent("chasm");
+                    sendDB();
+                }
+
                 this.destroy();
             }
         }
@@ -670,8 +693,8 @@ const G = (function () {
     }
 
     function dbEvent(type) {
-        if (useDB) {
-
+        if (useDB && PS.dbValid(db)) {
+            PS.dbEvent(db, "type", type, "hits", flowersHit, "ticks", time, "ending", (time >= 55 * 60 || flowersHit >= 55));
         }
     }
 
@@ -716,24 +739,6 @@ const G = (function () {
         clear();
         scene.draw();
 
-        /// bad ending
-
-        if (flowersHit >= 5)
-            PS.statusText("DO NOT TOUCH.");
-        if (flowersHit >= 15)
-            PS.statusText("THAT IS NOT WISE.");
-        if (flowersHit >= 25)
-            PS.statusText("I WARN YOU");
-        if (flowersHit >= 35)
-            PS.statusText("FOOLISH MORTAL");
-        if (flowersHit >= 45)
-            PS.statusText("DO NOT DEAL WITH POWERS");
-        if (flowersHit >= 55) {
-            PS.statusText("BE̶͜Y̸͟O̴͟N͞͡͝D̢̢ ҉̴Y͜Ờ͞U͘R̸̛͝ ́̀҉C͠O͢͞N̸T̷̛RO̧̡͜L͢");
-            inControl = false;
-
-        }
-
         // draw chasm
         if (!inControl) {
             PS.gridPlane(100);
@@ -749,7 +754,16 @@ const G = (function () {
     }
 
     function onLogin(id, name) {
+        PS.statusText("");
         PS.timerStart(1, tick);
+    }
+
+    function sendDB() {
+        if (useDB && PS.dbValid(db)) {
+            PS.dbSend(db, "vcmiller");
+            PS.dbSend(db, "alsensiba");
+            PS.dbErase(db);
+        }
     }
 
     return {
@@ -771,9 +785,8 @@ const G = (function () {
         },
         shutdown: function (options) {
             if (useDB) {
-                PS.dbSend(db, "vcmiller");
-                PS.dbSend(db, "alsensiba");
-                PS.dbErase(db);
+                dbEvent("quit");
+                sendDB();
             }
         }
     };
