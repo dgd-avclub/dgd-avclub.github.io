@@ -134,7 +134,7 @@ const G = (function () {
             this.imageFile = imageFile;
             this.waterMap = null;
             this.objects = [];
-            this.streamSize = 12; //4;
+            this.streamSize = 4;
             this.addWater = 0;
         }
 
