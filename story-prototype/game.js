@@ -105,7 +105,7 @@ const G = (function () {
     const waterVarianceColor = waterColor.plus(new Color(waterVariance, waterVariance, waterVariance))
     const waterFlowSpeed = 5;
 
-    const moonColor = PS.COLOR_YELLOW; //PS.COLOR_WHITE;
+    const moonColor = PS.COLOR_RED; //PS.COLOR_WHITE;
 
     const playerImageFile = "images/player.png";
     const playerMoveDelay = 1;
@@ -192,7 +192,7 @@ const G = (function () {
 
             // check if all flowers are collected
             PS.statusColor(PS.COLOR_WHITE);
-            PS.statusText("TEST TEXT");
+            PS.statusText(flowersHit);
 
         }
 
@@ -588,12 +588,7 @@ const G = (function () {
 
         onHit(by) {
             if (time >= this.startTime && by instanceof Player) {
-                PS.statusColor(PS.COLOR_WHITE);
                 flowersHit += 1;
-                if (flowersHit >= 5)
-                    PS.statusText("D O  N O T  T O U C H");
-                if (flowersHit >= 10)
-                    PS.statusText("F O O L I S H  M O R T A L");
                 find('Moon').advance();
                 this.destroy();
             }
@@ -692,14 +687,26 @@ const G = (function () {
         PS.alpha(PS.ALL, PS.ALL, 0);
         PS.border(PS.ALL, PS.ALL, 0);
         
-        PS.gridColor(PS.COLOR_BLACK);
-        PS.statusColor(PS.COLOR_BLACK);
+        //PS.gridColor(PS.COLOR_BLACK);
+        //PS.statusColor(PS.COLOR_BLACK);
     }
 
     function tick() {
         scene.tick();
         clear();
         scene.draw();
+
+        /// bad ending text
+        if (flowersHit >= 5)
+            PS.statusText("DO NOT TOUCH.");
+        if (flowersHit >= 15)
+            PS.statusText("YOU KNOW NOT WHAT YOU DO");
+        if (flowersHit >= 25)
+            PS.statusText("I WARN YOU");
+        if (flowersHit >= 35)
+            PS.statusText("FOOLISH MORTAL");
+        if (flowersHit >= 45)
+            PS.statusText("F̛͞A̴̴̷̕C̨̀͜͟͜Ȩ͞ ̶͡M̷̷͘͟Y̶͟͏ ̷̛͡͡W̵͜҉̸̧Ŕ̛A͘͟T̛҉̀̀H͢͠");
 
         time++;
         timeSinceLoad++;
