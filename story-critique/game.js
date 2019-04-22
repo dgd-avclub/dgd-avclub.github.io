@@ -95,6 +95,7 @@ const G = (function () {
 
     const screenSize = new Vector(32, 32);
     const scrollSpeed = 15;
+    let scrolling = true;
 
     const groundColor = new Color(0, 0.1, 0);
     const groundVariance = 0.02;
@@ -125,6 +126,8 @@ const G = (function () {
     let platformImage = null;
     const monsterImageFile = "images/monster.png";
     let monsterImage = null;
+    const houseImageFile = "images/house.png";
+    let houseImage = null;
 
     const audioPath = "audio/";
     const whisperSound = "whisper";
@@ -175,7 +178,7 @@ const G = (function () {
     let homeEnding = false;
     let deathEnding = false;
     let curFlowerThreshold = 0;
-    const homeEndingTime = 55 * 60;
+    const homeEndingTime = 52 * 60;
     let waterRecedeAmount = 0;
 
     class Scene {
@@ -226,12 +229,16 @@ const G = (function () {
                     }
                 }
 
-                if (time % scrollSpeed === 0 && !deathEnding) {
-                    this.advance();
-
+                if (time % scrollSpeed === 0 && scrolling) {
                     if (homeEnding && this.streamSize > 0) {
-                        this.streamSize--;
+                        this.streamSize -= 1;
+
+                        if (this.streamSize <= 0) {
+                            scene.objects.push(new House(new Vector(8, -16)));
+                        }
                     }
+
+                    this.advance();
                 }
 
                 if (deathEnding && waterRecedeAmount < 1) {
@@ -256,10 +263,8 @@ const G = (function () {
             this.waterMap.splice(0, 0, r);
 
             const s = Math.floor((screenSize.x - this.streamSize) / 2);
-            for (let x = s; x < s + this.streamSize; x++) {
-                if (x >= 0 && x < screenSize.x) {
-                    this.waterMap[0][x].isWater = true;
-                }
+            for (let x = 0; x < screenSize.x; x++) {
+                this.waterMap[0][x].isWater = x >= s && x < s + this.streamSize;
             }
         }
 
@@ -509,6 +514,8 @@ const G = (function () {
                 PS.statusText("You return home, ignorant");
                 dbEvent("home");
                 sendDB();
+                if (musicChannel) PS.audioFade(musicChannel, PS.CURRENT, 0, 1000);
+                if (whisperChannel) PS.audioFade(whisperChannel, PS.CURRENT, 0, 2000);
             }
 
             if (homeEnding || deathEnding) {
@@ -682,6 +689,7 @@ const G = (function () {
                     if (musicChannel) PS.audioFade(musicChannel, 1, 0, 1000);
                     deathEnding = true;
 
+                    scrolling = false;
                     //scene.objects.push(new Platform(by.pos.plus(new Vector(-4, -1))));
 
                     dbEvent("chasm");
@@ -744,6 +752,22 @@ const G = (function () {
         }
     }
 
+    class House extends SpriteObject {
+        constructor(pos) {
+            super(pos, houseImage);
+        }
+
+        tick() {
+            if (time % scrollSpeed === 0 && this.pos.y < 8) {
+                this.move(new Vector(0, 1));
+
+                if (this.pos.y === 8) {
+                    scrolling = false;
+                }
+            }
+        }
+    }
+
     function find(type) {
         for (let i = 0; i < scene.objects.length; i++) {
             let obj = scene.objects[i];
@@ -792,6 +816,10 @@ const G = (function () {
 
         PS.imageLoad(monsterImageFile, function(img){
             monsterImage = img;
+        });
+
+        PS.imageLoad(houseImageFile, function(img) {
+            houseImage = img;
         });
     }
 
