@@ -140,19 +140,23 @@ const G = (function () {
     const flowerThresholds = [
         {
             count: 5,
-            text: "DO NOT TOUCH."
+            text: "The lotus-faces whisper to you."
         },
         {
             count: 10,
-            text: "THAT IS NOT WISE."
+            text: "Upon the sea the hateful moon shone."
         },
         {
             count: 15,
-            text: "I WARN YOU"
+            text: "ilyaa n'ghft"
+        },
+        {
+            count: 16,
+            text: "Your flesh begins to tremble."
         },
         {
             count: 20,
-            text: "FOOLISH MORTAL"
+            text: "FOOLISH MORTAL."
         },
         {
             count: 25,
