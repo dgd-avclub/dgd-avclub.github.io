@@ -248,7 +248,8 @@ const G = (function () {
                 if (deathEnding && waterRecedeAmount < 1) {
                     waterRecedeAmount += waterRecedeSpeed;
                     if (waterRecedeAmount >= 1) {
-                        scene.objects.push(new Monster(new Vector(8, 8)));
+                        scene.objects.push(new Monster(new Vector(4, 4)));
+                        PS.audioPlay(bellSound, { path: audioPath, volume: 0.4 });
                     }
                 }
 
