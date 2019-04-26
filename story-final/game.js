@@ -187,6 +187,8 @@ const G = (function () {
     let curFlowerThreshold = 0;
     const homeEndingTime = 68 * 60;
     let waterRecedeAmount = 0;
+    let fadeOut = false;
+    let fadeOutAmount = 0;
 
     class Scene {
         constructor() {
@@ -227,6 +229,9 @@ const G = (function () {
         }
 
         tick() {
+            if (fadeOut) {
+                fadeOutAmount += 0.01;
+            }
             if (this.waterMap) {
                 for (let x = 0; x < screenSize.x; x++) {
                     for (let y = 0; y < screenSize.y; y++) {
@@ -313,6 +318,12 @@ const G = (function () {
                 for (const obj of this.objects) {
                     obj.draw();
                 }
+            }
+
+            if (fadeOut) {
+                PS.gridPlane(70);
+                PS.color(PS.ALL, PS.ALL, PS.COLOR_BLACK);
+                PS.alpha(PS.ALL, PS.ALL, fadeOutAmount * 255);
             }
 
         }
@@ -760,7 +771,7 @@ const G = (function () {
             super.draw();
             let p = this.pos.plus(new Vector(1, 1));
             if (time < this.startTime && inBounds(p)) {
-                PS.gridPlane(100);
+                PS.gridPlane(60);
                 PS.color(p.x, p.y, flowerColor);
                 PS.alpha(p.x, p.y, flowerAlpha);
             }
@@ -872,6 +883,7 @@ const G = (function () {
     class Monster extends SpriteObject {
         constructor(pos) {
             super(pos, monsterImage);
+            this.start = time;
         }
     }
 
@@ -888,6 +900,7 @@ const G = (function () {
 
                 if (this.pos.y === 8) {
                     scrolling = false;
+                    fadeOut = true;
                 }
             }
         }
