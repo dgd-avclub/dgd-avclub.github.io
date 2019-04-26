@@ -96,7 +96,7 @@ const G = (function () {
     const useDB = false;
 
     const screenSize = new Vector(32, 32);
-    const scrollSpeed = 15;
+    const scrollSpeed = 8;
     let scrolling = true;
 
     const groundColor = new Color(0, 0.1, 0);
@@ -109,7 +109,7 @@ const G = (function () {
     const waterVarianceColor = waterColor.plus(new Color(waterVariance, waterVariance, waterVariance));
     const voidColor = new Color(0, 0, 0);
     const voidVarianceColor = voidColor.plus(new Color(waterVariance, waterVariance, waterVariance));
-    const waterFlowSpeed = 5;
+    const waterFlowSpeed = 4;
     const waterRecedeSpeed = 0.01;
 
     const moonColor = Color.fromRGB(PS.COLOR_WHITE);
@@ -189,6 +189,8 @@ const G = (function () {
     let waterRecedeAmount = 0;
     let fadeOut = false;
     let fadeOutAmount = 0;
+    let playerFadeOut = false;
+    let playerFadeOutAmount = 0;
 
     class Scene {
         constructor() {
@@ -260,7 +262,7 @@ const G = (function () {
                 if (deathEnding && waterRecedeAmount < 1) {
                     waterRecedeAmount += waterRecedeSpeed;
                     if (waterRecedeAmount >= 1) {
-                        scene.objects.push(new Monster(new Vector(4, 4)));
+                        scene.objects.push(new Monster(new Vector(0, 0)));
                         PS.audioPlay(hitSound, { path: audioPath, volume: 1 });
                     }
                 }
@@ -595,7 +597,7 @@ const G = (function () {
 
             if (time === homeEndingTime && !deathEnding) {
                 homeEnding = true;
-                PS.statusText("You return home, ignorant");
+                PS.statusText("The darkness calls to you...");
                 dbEvent("home");
                 sendDB();
                 if (musicChannel) PS.audioFade(musicChannel, PS.CURRENT, 0, 1000);
@@ -672,6 +674,47 @@ const G = (function () {
         }
     }
 
+    class AnimSpriteObject extends SceneObject {
+        constructor(pos, image, frames, frameTime) {
+            super(pos, new Vector(image.width / frames, image.height));
+            this.sprites = [];
+            this.visible = true;
+            this.type = "AnimSpriteObject";
+            this.frameTime = frameTime;
+            this.start = time;
+            this.frames = frames;
+            this.animate = true;
+
+            for (let i = 0; i < frames; i++) {
+                let rect = {
+                    left: i * this.size.x,
+                    top: 0,
+                    width: this.size.x,
+                    height: this.size.y
+                };
+                this.sprites.push(PS.spriteImage(image, rect));
+            }
+        }
+
+        draw() {
+            if (!this.animate) {
+                this.start = time;
+            }
+
+            let i = Math.floor((time - this.start) / this.frameTime) % this.frames;
+            PS.spriteShow(this.sprites[i], false);
+            PS.spriteShow(this.sprites[i], this.visible);
+            PS.spritePlane(this.sprites[i], this.pos.y + 2);
+            PS.spriteMove(this.sprites[i], this.pos.x, this.pos.y);
+        }
+
+        onDestroy() {
+            for (let s of this.sprites) {
+                PS.spriteDelete(s);
+            }
+        }
+    }
+
     class Player extends SceneObject {
         constructor(pos) {
             super(pos, new Vector(1, 3));
@@ -687,7 +730,6 @@ const G = (function () {
             // can control movements outside of cutscene
             if (!deathEnding && !homeEnding) {
                 let move = new Vector(0, 0);
-                console.log(keysHeld);
                 if (keysHeld[PS.KEY_ARROW_LEFT] || keysHeld[97]) {
                     move = move.plus(LEFT);
                 }
@@ -704,6 +746,10 @@ const G = (function () {
                 if (move.x !== 0 || move.y !== 0) {
                     this.move(move);
                 }
+            }
+
+            if (playerFadeOut) {
+                playerFadeOutAmount += 0.01;
             }
         }
 
@@ -726,16 +772,16 @@ const G = (function () {
                 let wx = this.pos.x + x;
                 for (let y = 0; y < this.size.y; y++) {
                     let wy = this.pos.y + y;
-                    PS.alpha(wx, wy, 255);
+                    PS.alpha(wx, wy, 255 * (1 - playerFadeOutAmount));
                     PS.color(wx, wy, PS.COLOR_WHITE);
                 }
             }
         }
     }
 
-    class Flower extends SpriteObject {
+    class Flower extends AnimSpriteObject {
         constructor(pos, vel, delay) {
-            super(find("Moon").pos, flowerImage);
+            super(find("Moon").pos, flowerImage, 2, 10);
             this.startPos = pos;
             this.collides = true;
             this.solid = false;
@@ -880,10 +926,16 @@ const G = (function () {
         }
     }
 
-    class Monster extends SpriteObject {
+    class Monster extends AnimSpriteObject {
         constructor(pos) {
-            super(pos, monsterImage);
+            super(pos, monsterImage, 8, 5);
             this.start = time;
+        }
+
+        tick() {
+            if (time - this.start > 30) {
+                playerFadeOut = true;
+            }
         }
     }
 
@@ -892,6 +944,8 @@ const G = (function () {
             super(pos, houseImage);
             this.push = true;
             this.solid = true;
+
+            PS.statusText("...But you refuse to answer");
         }
 
         tick() {
