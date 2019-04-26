@@ -9,6 +9,8 @@
 Sound credits:
 Whisper - https://freesound.org/people/geoneo0/sounds/193808/
 Music - Lost In The Dark, Mega Game Music Collection (Unreal Marketplace)
+Hit - https://freesound.org/people/Puniho/sounds/113782/
+Splash - https://freesound.org/people/Phil25/sounds/207371/
 
  */
 
@@ -132,7 +134,8 @@ const G = (function () {
     const audioPath = "audio/";
     const whisperSound = "whisper";
     const musicSound = "music";
-    const bellSound = "bell";
+    const hitSound = "hit";
+    const splashSound = "splash";
 
     let whisperChannel = null;
     let musicChannel = null;
@@ -144,7 +147,7 @@ const G = (function () {
         },
         {
             count: 10,
-            text: "Upon the sea the hateful moon shone."
+            text: "The hateful moon shines."
         },
         {
             count: 15,
@@ -176,13 +179,13 @@ const G = (function () {
 
     let time = 0;
     let timeSinceLoad = 0;
-    
+
     // flower counter to trigger ending
     let flowersHit = 0;
     let homeEnding = false;
     let deathEnding = false;
     let curFlowerThreshold = 0;
-    const homeEndingTime = 52 * 60;
+    const homeEndingTime = 68 * 60;
     let waterRecedeAmount = 0;
 
     class Scene {
@@ -203,6 +206,7 @@ const G = (function () {
                         period: Math.random() * waterPeriodVariance + waterPeriod,
                         alpha: 0,
                         isWater: x > (screenSize.x - this.streamSize) / 2 && x < (screenSize.x + this.streamSize) / 2,
+                        step: 0,
                         grassColor: new Color(
                             groundColor.r + Math.random() * groundVariance,
                             groundColor.g + Math.random() * groundVariance,
@@ -228,6 +232,9 @@ const G = (function () {
                     for (let y = 0; y < screenSize.y; y++) {
                         let w = this.waterMap[y][x];
                         if (w) {
+                            if (w.step > 0) {
+                                w.step--;
+                            }
                             w.alpha = Math.sin(time / w.period + w.phase) * 0.5 + 0.5;
                         }
                     }
@@ -249,7 +256,7 @@ const G = (function () {
                     waterRecedeAmount += waterRecedeSpeed;
                     if (waterRecedeAmount >= 1) {
                         scene.objects.push(new Monster(new Vector(4, 4)));
-                        PS.audioPlay(bellSound, { path: audioPath, volume: 0.4 });
+                        PS.audioPlay(hitSound, { path: audioPath, volume: 1 });
                     }
                 }
 
@@ -295,6 +302,9 @@ const G = (function () {
                             PS.color(x, y, c.toRGB());
                         } else {
                             let c = Color.lerp(waterColor, waterVarianceColor, this.waterMap[fy][x].alpha);
+                            if (this.waterMap[fy][x].step > 0) {
+                                c = Color.lerp(c, new Color(1, 1, 1).times(0.5 + 0.2 * this.waterMap[fy][x].phase), this.waterMap[fy][x].step / 15);
+                            }
                             PS.color(x, y, c.toRGB());
                         }
                     }
@@ -362,6 +372,24 @@ const G = (function () {
         }
     }
 
+    class Pattern_Line_ZigZag extends Pattern_Line {
+        constructor(start, delay, repeats, count, pos, dir, vel, delayStart, delayPer, bendTime, bendTimePer, bendDir, bends) {
+            super(start, delay, repeats, count, pos, dir, vel, delayStart, delayPer);
+            this.bendTime = bendTime;
+            this.bendTimePer = bendTimePer;
+            this.bendDir = bendDir;
+            this.bends = bends;
+        }
+
+        fire() {
+            for (let i = 0; i < this.count; i++) {
+                scene.objects.push(new Flower_ZigZag(
+                    this.pos.plus(this.dir.times(i)), this.vel, i * this.delayPer + this.delayStart,
+                    this.bendTime + this.bendTimePer * i, this.bendDir, this.bends));
+            }
+        }
+    }
+
     class Pattern_Square extends Pattern {
         constructor(start, delay, repeats, radius, speed, bends, dir) {
             super(start, delay, repeats);
@@ -391,6 +419,18 @@ const G = (function () {
         }
     }
 
+    class Pattern_Homing extends Pattern {
+        constructor(start, delay, repeats, pos, vel) {
+            super(start, delay, repeats);
+            this.pos = pos;
+            this.vel = vel;
+        }
+
+        fire() {
+            scene.objects.push(new Flower_Homing(this.pos, this.vel, 30, 0, 10));
+        }
+    }
+
     const scene = new Scene();
 
     class SceneObject {
@@ -403,9 +443,12 @@ const G = (function () {
             this.canExit = false;
             this.type = "SceneObject";
             this.movement = new Vector(0, 0);
+            this.push = false; // whether to push other objects out of the way on collision, instead of being blocked
         }
 
         overlaps(other) {
+            if (this.destroyed || other.destroyed) return false;
+
             let xo = (this.pos.x >= other.pos.x && this.pos.x < other.pos.x + other.size.x) ||
                 (other.pos.x >= this.pos.x && other.pos.x < this.pos.x + this.size.x);
 
@@ -429,7 +472,7 @@ const G = (function () {
             }
         }
 
-        checkCollisions() {
+        checkCollisions(delta) {
             let solidHit = false;
             for (let i = 0; i < scene.objects.length; i++) {
                 let other = scene.objects[i];
@@ -438,7 +481,11 @@ const G = (function () {
                     this.onHit(other);
                     other.onHit(this);
                     if (other.solid && this.solid) {
-                        solidHit = true;
+                        if (this.push) {
+                            other.move(delta);
+                        } else {
+                            solidHit = true;
+                        }
                     }
                 }
             }
@@ -467,7 +514,7 @@ const G = (function () {
 
             let oldPos = this.pos;
             this.pos = to;
-            if (this.checkCollisions()) {
+            if (this.checkCollisions(to.minus(oldPos))) {
                 this.pos = oldPos;
             } else {
                 this.onMove();
@@ -504,9 +551,30 @@ const G = (function () {
                 new Pattern_Line_Bend(60 *  45, 0, 1, 2, new Vector(17, -3), new Vector(7, 0), new Vector(0, .5), 30, 30, 34, -24, -1),
 
                 new Pattern_Line_Bend(60 *  46, 0, 1, 4, new Vector(3, -3), new Vector(7, 0), new Vector(0, .5), 30, 30, 58, -12, 1),
+
+                new Pattern_Homing(60 * 48, 0, 1, new Vector(2, 2), new Vector(0, 0.5)),
+                new Pattern_Homing(60 * 50, 0, 1, new Vector(28, 2), new Vector(0, 0.5)),
+                new Pattern_Homing(60 * 52, 0, 1, new Vector(28, 28), new Vector(0, -0.5)),
+                new Pattern_Homing(60 * 54, 0, 1, new Vector(2, 28), new Vector(0, -0.5)),
+
+                new Pattern_Homing(60 * 56, 0, 1, new Vector(2, 2), new Vector(0, 0.5)),
+                new Pattern_Homing(60 * 56.5, 0, 1, new Vector(11, 2), new Vector(0, 0.5)),
+                new Pattern_Homing(60 * 57, 0, 1, new Vector(20, 2), new Vector(0, 0.5)),
+                new Pattern_Homing(60 * 57.5, 0, 1, new Vector(29, 2), new Vector(0, 0.5)),
+
+                new Pattern_Homing(60 * 59, 0, 1, new Vector(2, 28), new Vector(0, -0.5)),
+                new Pattern_Homing(60 * 59.5, 0, 1, new Vector(11, 28), new Vector(0, -0.5)),
+                new Pattern_Homing(60 * 60, 0, 1, new Vector(20, 28), new Vector(0, -0.5)),
+                new Pattern_Homing(60 * 60.5, 0, 1, new Vector(29, 28), new Vector(0, -0.5)),
+
+                new Pattern_Square(60 * 62, 0, 1, 15, 0.5, 6, -1),
+                new Pattern_Homing(60 * 63, 0, 1, new Vector(2, 2), new Vector(0, 0.5)),
+                new Pattern_Homing(60 * 63.5, 0, 1, new Vector(11, 2), new Vector(0, 0.5)),
+                new Pattern_Homing(60 * 64, 0, 1, new Vector(20, 2), new Vector(0, 0.5)),
+                new Pattern_Homing(60 * 64.5, 0, 1, new Vector(29, 2), new Vector(0, 0.5)),
             ];
 
-            //time = 60 * 39;
+            //time = 60 * 55;
         }
 
         tick() {
@@ -593,39 +661,62 @@ const G = (function () {
         }
     }
 
-    class Player extends SpriteObject {
+    class Player extends SceneObject {
         constructor(pos) {
-            super(pos, playerImage);
+            super(pos, new Vector(1, 3));
             this.collides = true;
             this.solid = true;
             this.canExit = false;
-            this.lastMove = -playerMoveDelay;
             this.type = "Player";
+            this.lastFootstep = -100;
         }
 
         tick() {
 
             // can control movements outside of cutscene
-            if (!deathEnding) {
-                if (time - this.lastMove > playerMoveDelay) {
-                    let move = new Vector(0, 0);
-                    if (keysHeld[PS.KEY_ARROW_LEFT]) {
-                        move = move.plus(LEFT);
-                    }
-                    if (keysHeld[PS.KEY_ARROW_RIGHT]) {
-                        move = move.plus(RIGHT);
-                    }
-                    if (keysHeld[PS.KEY_ARROW_UP]) {
-                        move = move.plus(UP);
-                    }
-                    if (keysHeld[PS.KEY_ARROW_DOWN]) {
-                        move = move.plus(DOWN);
-                    }
+            if (!deathEnding && !homeEnding) {
+                let move = new Vector(0, 0);
+                console.log(keysHeld);
+                if (keysHeld[PS.KEY_ARROW_LEFT] || keysHeld[97]) {
+                    move = move.plus(LEFT);
+                }
+                if (keysHeld[PS.KEY_ARROW_RIGHT] || keysHeld[100]) {
+                    move = move.plus(RIGHT);
+                }
+                if (keysHeld[PS.KEY_ARROW_UP] || keysHeld[119]) {
+                    move = move.plus(UP);
+                }
+                if (keysHeld[PS.KEY_ARROW_DOWN] || keysHeld[115]) {
+                    move = move.plus(DOWN);
+                }
 
-                    if (move.x !== 0 || move.y !== 0) {
-                        this.lastMove = time;
-                        this.move(move);
-                    }
+                if (move.x !== 0 || move.y !== 0) {
+                    this.move(move);
+                }
+            }
+        }
+
+        onMove() {
+            let feet = this.pos.plus(new Vector(0, this.size.y - 1));
+            if (scene.isWater(feet)) {
+                let fy = feet.y + Math.floor(time / waterFlowSpeed);
+                fy %= screenSize.y;
+                scene.waterMap[fy][feet.x].step = 15;
+                if (time - this.lastFootstep > 10) {
+                    PS.audioPlay(splashSound, { path: audioPath, volume: 0.5 });
+                    this.lastFootstep = time;
+                }
+            }
+        }
+
+        draw() {
+            PS.gridPlane(this.pos.y + 2);
+            for (let x = 0; x < this.size.x; x++) {
+                let wx = this.pos.x + x;
+                for (let y = 0; y < this.size.y; y++) {
+                    let wy = this.pos.y + y;
+                    PS.alpha(wx, wy, 255);
+                    PS.color(wx, wy, PS.COLOR_WHITE);
                 }
             }
         }
@@ -680,7 +771,7 @@ const G = (function () {
                 flowersHit += 1;
                 find('Moon').advance();
                 dbEvent("hit");
-                PS.audioPlay(bellSound, { path: audioPath, volume: 0.2 });
+                PS.audioPlay(hitSound, { path: audioPath, volume: 0.2 });
 
                 if (curFlowerThreshold < flowerThresholds.length && flowersHit === flowerThresholds[curFlowerThreshold].count) {
                     PS.statusText(flowerThresholds[curFlowerThreshold].text);
@@ -745,6 +836,33 @@ const G = (function () {
         }
     }
 
+    class Flower_Homing extends Flower {
+        constructor(pos, vel, delay, changeDelay, bendCount) {
+            super(pos, vel, delay);
+            this.changeDelay = changeDelay;
+            this.bendCount = bendCount;
+            this.player = find("Player");
+
+            // Calculate speed, this works because vel should always be in a cardinal direction (only one coordinate has a value).
+            this.speed = Math.abs(vel.x) + Math.abs(vel.y);
+        }
+
+        moveFired() {
+            super.moveFired();
+            this.solid = true;
+            const t = time - this.startTime;
+            if (this.bendCount > 0) {
+                if (this.vel.x !== 0 && Math.abs(this.pos.x - this.player.pos.x) < 2) {
+                    this.vel = new Vector(0, Math.sign(this.player.pos.y - this.pos.y) * this.speed);
+                    this.bendCount--;
+                } else if (this.vel.y !== 0 && Math.abs(this.pos.y - this.player.pos.y) < 2) {
+                    this.vel = new Vector(Math.sign(this.player.pos.x - this.pos.x) * this.speed, 0);
+                    this.bendCount--;
+                }
+            }
+        }
+    }
+
     class Platform extends SpriteObject {
         constructor(pos) {
             super(pos, platformImage);
@@ -760,6 +878,8 @@ const G = (function () {
     class House extends SpriteObject {
         constructor(pos) {
             super(pos, houseImage);
+            this.push = true;
+            this.solid = true;
         }
 
         tick() {
@@ -802,7 +922,8 @@ const G = (function () {
     function loadSounds() {
         PS.audioLoad(whisperSound, { path: audioPath });
         PS.audioLoad(musicSound, { path: audioPath });
-        PS.audioLoad(bellSound, { path: audioPath });
+        PS.audioLoad(hitSound, { path: audioPath });
+        PS.audioLoad(splashSound, { path: audioPath });
     }
 
     function loadImages() {
@@ -835,7 +956,7 @@ const G = (function () {
         PS.bgColor(PS.ALL, PS.ALL, PS.COLOR_BLACK);
         PS.alpha(PS.ALL, PS.ALL, 0);
         PS.border(PS.ALL, PS.ALL, 0);
-        
+
         PS.gridColor(PS.COLOR_BLACK);
         PS.statusColor(PS.COLOR_WHITE);
     }
@@ -850,7 +971,7 @@ const G = (function () {
     }
 
     function onLogin(id, name) {
-        PS.statusText("");
+        PS.statusText("WASD/arrows to move");
         PS.timerStart(1, tick);
 
         PS.audioPlay(whisperSound, { path: audioPath, loop: true, volume: 0, onLoad: function(data) {
@@ -858,7 +979,7 @@ const G = (function () {
             }
         });
 
-        PS.audioPlay(musicSound, { path: audioPath, loop: true, onLoad: function (data) {
+        PS.audioPlay(musicSound, { path: audioPath, loop: true, volume: 1, onLoad: function (data) {
                 musicChannel = data.channel;
             }
         });
