@@ -130,7 +130,7 @@ const G = (function () {
     let monsterImage = null;
     const houseImageFile = "images/house.png";
     let houseImage = null;
-    const skullImageFile = "images/skull.png";
+    const skullImageFile = "images/rip skull.png";
     let skullImage = null;
 
     const audioPath = "audio/";
@@ -687,6 +687,7 @@ const G = (function () {
             this.frames = frames;
             this.animate = true;
             this.loop = true;
+            this.spritePlaneOffset = 2;
 
             for (let i = 0; i < frames; i++) {
                 let rect = {
@@ -705,7 +706,7 @@ const G = (function () {
             }
 
             let i = Math.floor((time - this.start) / this.frameTime);
-            if (loop) {
+            if (this.loop) {
                 i %= this.frames
             } else {
                 i = Math.min(i, this.frames - 1);
@@ -713,7 +714,7 @@ const G = (function () {
 
             PS.spriteShow(this.sprites[i], false);
             PS.spriteShow(this.sprites[i], this.visible);
-            PS.spritePlane(this.sprites[i], this.pos.y + 2);
+            PS.spritePlane(this.sprites[i], this.pos.y + this.spritePlaneOffset);
             PS.spriteMove(this.sprites[i], this.pos.x, this.pos.y);
         }
 
@@ -759,8 +760,8 @@ const G = (function () {
 
             if (playerFadeOut && playerFadeOutAmount < 1) {
                 playerFadeOutAmount += 0.01;
-                if (playerFadeOutAmount === 1) {
-                    scene.objects.push(new Skull(4, 4));
+                if (playerFadeOutAmount >= 1) {
+                    scene.objects.push(new Skull(new Vector(0, 0)));
                 }
             }
         }
@@ -952,8 +953,9 @@ const G = (function () {
 
     class Skull extends AnimSpriteObject {
         constructor(pos) {
-            super(pos, skullImage, 5, 5);
+            super(pos, skullImage, 4, 5);
             this.loop = false;
+            this.spritePlaneOffset = 50;
         }
 
         tick() {
