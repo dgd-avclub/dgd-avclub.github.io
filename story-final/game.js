@@ -130,6 +130,8 @@ const G = (function () {
     let monsterImage = null;
     const houseImageFile = "images/house.png";
     let houseImage = null;
+    const skullImageFile = "images/skull.png";
+    let skullImage = null;
 
     const audioPath = "audio/";
     const whisperSound = "whisper";
@@ -684,6 +686,7 @@ const G = (function () {
             this.start = time;
             this.frames = frames;
             this.animate = true;
+            this.loop = true;
 
             for (let i = 0; i < frames; i++) {
                 let rect = {
@@ -701,7 +704,13 @@ const G = (function () {
                 this.start = time;
             }
 
-            let i = Math.floor((time - this.start) / this.frameTime) % this.frames;
+            let i = Math.floor((time - this.start) / this.frameTime);
+            if (loop) {
+                i %= this.frames
+            } else {
+                i = Math.min(i, this.frames - 1);
+            }
+
             PS.spriteShow(this.sprites[i], false);
             PS.spriteShow(this.sprites[i], this.visible);
             PS.spritePlane(this.sprites[i], this.pos.y + 2);
@@ -748,8 +757,11 @@ const G = (function () {
                 }
             }
 
-            if (playerFadeOut) {
+            if (playerFadeOut && playerFadeOutAmount < 1) {
                 playerFadeOutAmount += 0.01;
+                if (playerFadeOutAmount === 1) {
+                    scene.objects.push(new Skull(4, 4));
+                }
             }
         }
 
@@ -929,12 +941,24 @@ const G = (function () {
     class Monster extends AnimSpriteObject {
         constructor(pos) {
             super(pos, monsterImage, 8, 5);
-            this.start = time;
         }
 
         tick() {
             if (time - this.start > 30) {
                 playerFadeOut = true;
+            }
+        }
+    }
+
+    class Skull extends AnimSpriteObject {
+        constructor(pos) {
+            super(pos, skullImage, 5, 5);
+            this.loop = false;
+        }
+
+        tick() {
+            if (time - this.start > 30) {
+                fadeOut = true;
             }
         }
     }
@@ -1013,6 +1037,10 @@ const G = (function () {
 
         PS.imageLoad(houseImageFile, function(img) {
             houseImage = img;
+        });
+
+        PS.imageLoad(skullImageFile, function (img) {
+            skullImage = img;
         });
     }
 
